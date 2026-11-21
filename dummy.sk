@@ -159,6 +159,7 @@ command /dummyhit:
         set {mayor.power.%player%} to true
         grantMayorAbsorption(player)
         delete {cd.mayor_strike.%player%}
+        delete {cd.remaining::mayor_strike.%player%}
         send "&a&l[DUMMY] Парирование удалось! Удар готов, Сверхудар активен 2 сек." to player
         wait 2 seconds
         delete {mayor.power.%player%}
