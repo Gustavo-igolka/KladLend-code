@@ -95,6 +95,12 @@ function anomalyStalkBlind(p: player):
 
 # --- Убийцу нельзя ранить или убить НИЧЕМ — только оглушить/замедлить/и т.д.
 on damage:
+    # Любое получение урона прерывает активную Стойкость Томаса до остальных обработчиков.
+    if victim is a player:
+        if {char.%victim%} is "thomas":
+            if {thomas.resistActive.%victim%} is true:
+                thomasEndResist(victim)
+                send "&cПолученный урон прервал Стойкость!" to victim
     # --- Возрождение Ильи без смерти: перехватываем только смертельный урон ---
     if victim is a player:
         if {round.active} is true:
@@ -1076,14 +1082,6 @@ function thomasResist(p: player, t: entity):
         thomasEndResist({_p})
         send "&aПоддержка завершена." to {_p}
 
-# Любое событие получения урона немедленно прерывает Стойкость.
-on damage:
-    if victim is a player:
-        if {char.%victim%} is "thomas":
-            if {thomas.resistActive.%victim%} is true:
-                thomasEndResist(victim)
-                send "&cПолученный урон прервал Стойкость!" to victim
-
 # Во время Стойкости Томас физически не может перемещаться.
 on player move:
     if {thomas.resistActive.%player%} is true:
@@ -1997,7 +1995,6 @@ on damage:
 on right click on armor stand:
     if {sanyaOwner.%clicked entity%} is set:
         cancel event
-
 # ---------------------------------------------------------
 # КИРИЛЛ (выживший, Рашер) — Вор / Глич / Имплант
 # Шкала ячеек: {kirill.cells.%p%} (0-10, старт 6). Режим Глича:
