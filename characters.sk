@@ -198,6 +198,9 @@ function give_alexey_kit(p: player):
     clear inventory of {_p}
     give splash potion named "&dЗелье исцеления" to {_p}
     give sugar named "&5Рывок" to {_p}
+    set max health of {_p} to 8
+    wait 1 tick
+    set health of {_p} to 8
 
 function give_ilya_kit(p: player):
     clear inventory of {_p}
