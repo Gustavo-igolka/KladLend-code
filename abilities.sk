@@ -988,10 +988,11 @@ on right click holding redstone:
 
 # Три способности — мгновенные лучи (как Магический лук Некромансика), стрел нет.
 # Предметы остаются луками, но по ПКМ стреляет не стрела, а луч: цель в прицеле,
-# дальность {@thomasBeamRange} блоков. КД тратится и при промахе.
+# дальность {@thomasBeamRange} блоков. Для луча используется увеличенный hitbox.
 #   Лук: Скорость   (КД 25) — союзник: Speed I + поглощение на 3 сек
 #   Лук: Замедление (КД 25) — убийца: замедление + свечение 5 сек + ошеломление 4 сек
-#   Лук: Стойкость  (КД 35) — союзник: Resistance III на 7 сек, сам Томас замедлен на 4 сек
+#   Лук: Стойкость  (КД 35) — союзник: Resistance IV до 7 сек; Томас получает Slowness IV
+#   и не может двигаться. Промах по Стойкости не тратит перезарядку.
 # В Батл Рояле (event.sk) союзников нет: баф Скорости/Стойкости уходит самому Томасу,
 # а луч Замедления бьёт любого другого игрока.
 
@@ -1136,14 +1137,20 @@ function thomasCast(p: player, type: text):
         set {_ready} to "&a✔ Лук стойкости снова готов!"
 
     if {_type} is "resist":
-        # В Батл Рояле союзников нет: сохраняем прежний личный баф.
+        # В Батл Рояле союзников нет: сохраняем личный баф, теперь Resistance IV.
         if {event.misha.br_active} is true:
             if tryCooldown({_p}, {_key}, {_cd}) is true:
-                apply resistance 3 to {_p} for 7 seconds
-                send "&bБатл Рояль: Сильная стойкость на 7 секунд." to {_p}
-                wait {_cd} seconds
+                apply resistance 4 to {_p} for 7 seconds
+                send "&bБатл Рояль: Стойкость IV на 7 секунд." to {_p}
+                set {_wait} to {_cd} * 1 second
+                wait {_wait}
                 send colored {_ready} to {_p}
             stop
+        # Если способность ещё на перезарядке, не выдаём ложное сообщение о промахе.
+        if {cd.thomas_resist.%{_p}%} is set:
+            if difference between {cd.thomas_resist.%{_p}%} and now < 35 seconds:
+                send "&cЕщё не восстановилось, подожди немного." to {_p}
+                stop
         set {_target} to thomasTarget({_p}, "ally")
         if {_target} is set:
             if tryCooldown({_p}, {_key}, {_cd}) is true:
