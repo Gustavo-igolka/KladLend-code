@@ -46,10 +46,10 @@ function sporeInfect(t: player):
 function sporeApplyEffects(p: player):
     set {_s} to {spore.stage.%{_p}%}
     if {_s} >= 2:
-        execute console command "minecraft:effect give %name of {_p}% minecraft:blindness 2 0 true"
+        apply blindness to {_p} for 30 ticks
         apply glowing to {_p} for 30 ticks
     if {_s} >= 3:
-        apply nausea 1 to {_p} for 30 ticks
+        apply nausea 3 to {_p} for 30 ticks
 
 # --- Тик спор: стадии + заражение от соседей. Работает всегда, но что-то
 #     делает только если кто-то заражён (споры чистятся в конце раунда). ---
