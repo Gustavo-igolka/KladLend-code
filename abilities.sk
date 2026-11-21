@@ -40,9 +40,10 @@ function getCooldownRate(p: player, key: text) :: number:
         if {cd.modifier.until.%{_p}%.%{_source}%.all} is set:
             if {cd.modifier.until.%{_p}%.%{_source}%.all} > now:
                 set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.all}
-        if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} is set:
-            if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} > now:
-                set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.%{_key}%}
+        if {_key} is not "all":
+            if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} is set:
+                if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} > now:
+                    set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.%{_key}%}
     return {_rate}
 
 # key = "all" — все способности; иначе — только способность с таким ID.
@@ -1197,8 +1198,8 @@ function thomasCast(p: player, type: text):
             stop
         # Если способность ещё на перезарядке, не выдаём ложное сообщение о промахе.
         if getCooldownRemaining({_p}, "thomas_resist") > 0:
-                send "&cЕщё не восстановилось, подожди немного." to {_p}
-                stop
+            send "&cЕщё не восстановилось, подожди немного." to {_p}
+            stop
         set {_target} to thomasTarget({_p}, "ally")
         if {_target} is set:
             if tryCooldown({_p}, {_key}, {_cd}) is true:
