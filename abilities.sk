@@ -1,6 +1,7 @@
 # =========================================================
 # abilities.sk — способности персонажей и кулдауны
-# Кулдаун хранится как {cd.<имя_способности>.%player%} = дата последнего использования
+# Единая система кулдаунов: остаток времени уменьшается центральным тикером,
+# а скорость восстановления может изменяться глобально или для отдельной способности.
 # Все сообщения ("send ... to player") — личные, их видит только сам игрок.
 # =========================================================
 
@@ -30,18 +31,68 @@ options:
     dartBlastRadius: 4
     dartBlastDamage: 3
 
+# Возвращает текущую скорость восстановления конкретной способности.
+# Общие и персональные модификаторы перемножаются.
+function getCooldownRate(p: player, key: text) :: number:
+    set {_rate} to 1
+    loop {cd.modifierSources.%{_p}%::*}:
+        set {_source} to loop-value
+        if {cd.modifier.until.%{_p}%.%{_source}%.all} is set:
+            if {cd.modifier.until.%{_p}%.%{_source}%.all} > now:
+                set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.all}
+        if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} is set:
+            if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} > now:
+                set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.%{_key}%}
+    return {_rate}
+
+# key = "all" — все способности; иначе — только способность с таким ID.
+# rate 1.5 ускоряет восстановление в 1.5 раза; rate 0.5 замедляет вдвое.
+# source — уникальный ID эффекта, независимые эффекты не перезаписывают друг друга.
+function setCooldownModifier(p: player, source: text, key: text, rate: number, secs: number):
+    set {cd.modifier.rate.%{_p}%.%{_source}%.%{_key}%} to {_rate}
+    set {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} to now + ("%{_secs}% seconds" parsed as timespan)
+    if {_source} is not in {cd.modifierSources.%{_p}%::*}:
+        add {_source} to {cd.modifierSources.%{_p}%::*}
+    if {_key} is not in {cd.modifierKeys.%{_p}%.%{_source}%::*}:
+        add {_key} to {cd.modifierKeys.%{_p}%.%{_source}%::*}
+
+function getCooldownRemaining(p: player, key: text) :: number:
+    if {cd.remaining::%{_key}%.%{_p}%} is set:
+        return {cd.remaining::%{_key}%.%{_p}%}
+    return 0
+
+function setCooldownRemaining(p: player, key: text, secs: number):
+    set {cd.remaining::%{_key}%.%{_p}%} to {_secs}
+    if {_key} is not in {cd.keys.%{_p}%::*}:
+        add {_key} to {cd.keys.%{_p}%::*}
+
 function tryCooldown(p: player, key: text, secs: number) :: boolean:
-    # secs — длительность кулдауна в секундах ЧИСЛОМ (его же показывает vision.sk в экшнбаре)
-    set {_duration} to "%{_secs}% seconds" parsed as timespan
-    if {cd.%{_key}%.%{_p}%} is set:
-        set {_elapsed} to difference between {cd.%{_key}%.%{_p}%} and now
-        if {_elapsed} < {_duration}:
-            send "&cЕщё не восстановилось, подожди немного." to {_p}
-            return false
-    set {cd.%{_key}%.%{_p}%} to now
-    # Остаток в секундах для отображения в хотбаре (уменьшается раз в секунду в vision.sk)
-    set {cdr::%{_key}%.%{_p}%} to {_secs}
+    if getCooldownRemaining({_p}, {_key}) > 0:
+        send "&cЕщё не восстановилось, подожди немного." to {_p}
+        return false
+    setCooldownRemaining({_p}, {_key}, {_secs})
     return true
+
+# Единый тикер перезарядок и сроков модификаторов.
+every 1 second:
+    loop all players:
+        set {_p} to loop-player
+        loop {cd.keys.%{_p}%::*}:
+            set {_key} to loop-value
+            if {cd.remaining::%{_key}%.%{_p}%} is set:
+                if {cd.remaining::%{_key}%.%{_p}%} > 0:
+                    set {_rate} to getCooldownRate({_p}, {_key})
+                    remove {_rate} from {cd.remaining::%{_key}%.%{_p}%}
+                    if {cd.remaining::%{_key}%.%{_p}%} <= 0:
+                        set {cd.remaining::%{_key}%.%{_p}%} to 0
+        loop {cd.modifierSources.%{_p}%::*}:
+            set {_source} to loop-value
+            loop {cd.modifierKeys.%{_p}%.%{_source}%::*}:
+                set {_modifierKey} to loop-value
+                if {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%} is set:
+                    if {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%} <= now:
+                        delete {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%}
+                        delete {cd.modifier.rate.%{_p}%.%{_source}%.%{_modifierKey}%}
 
 # ---------------------------------------------------------
 # СКОРОСТЬ УБИЙЦ — единая система (раньше speed ставили сразу в нескольких
@@ -1145,8 +1196,7 @@ function thomasCast(p: player, type: text):
                 send colored {_ready} to {_p}
             stop
         # Если способность ещё на перезарядке, не выдаём ложное сообщение о промахе.
-        if {cd.thomas_resist.%{_p}%} is set:
-            if difference between {cd.thomas_resist.%{_p}%} and now < 35 seconds:
+        if getCooldownRemaining({_p}, "thomas_resist") > 0:
                 send "&cЕщё не восстановилось, подожди немного." to {_p}
                 stop
         set {_target} to thomasTarget({_p}, "ally")
@@ -1693,6 +1743,7 @@ on damage:
                             set {mayor.power.%victim%} to true
                             grantMayorAbsorption(victim)
                             delete {cd.mayor_strike.%victim%}
+                            delete {cd.remaining::mayor_strike.%victim%}
                             delete {cdr::mayor_strike.%victim%}
                             addAnger(victim, 1)
                             awardXP(victim, "mayor", 30)
@@ -2401,12 +2452,12 @@ function projectRushOnHit(p: player, s: player):
     if {project.dashStack.%{_s}%} is true:
         damage {_s} by 3
         set {project.dashStack.%{_s}%} to false
-        set {project.rushReadyAt.%{_p}%} to now + 50 seconds
+        setCooldownRemaining({_p}, "project_rush", 50)
         send "&4&lСтак пробит! Откат обычный (50 сек)." to {_p}
         projectSlowWalk({_p}, 0.11, 4 seconds)
     else:
         projectSetDashStack({_s})
-        set {project.rushReadyAt.%{_p}%} to now + 2 seconds
+        setCooldownRemaining({_p}, "project_rush", 2)
         send "&4Рывок зацепил выжившего! Стак поставлен, откат ускорен (2 сек)." to {_p}
 
 function projectPerformRush(p: player):
@@ -2446,12 +2497,8 @@ on right click holding feather:
             if {staggered.%player%} is true:
                 send "&eТы ошеломлён и не можешь использовать способности!" to player
                 stop
-            if {project.rushReadyAt.%player%} is set:
-                if {project.rushReadyAt.%player%} > now:
-                    send "&cЕщё не восстановилось, подожди немного." to player
-                    stop
-            set {project.rushReadyAt.%player%} to now + 50 seconds
-            set {cdr::project_rush.%player%} to 50
+            if tryCooldown(player, "project_rush", 50) is false:
+                stop
             set {project.channeling.%player%} to true
             send "&eПодготовка рывка..." to player
             projectSlowWalk(player, 0, 1.5 seconds)
@@ -2520,9 +2567,8 @@ on right click holding recovery compass:
                 send "&7Нет заражённых генераторов для телепорта." to player
                 stop
             set {_ready} to true
-            if {cd.project_teleport.%player%} is set:
-                if difference between {cd.project_teleport.%player%} and now < 80 seconds:
-                    set {_ready} to false
+            if getCooldownRemaining(player, "project_teleport") > 0:
+                set {_ready} to false
             if {_ready} is false:
                 send "&cЕщё не восстановилось, подожди немного." to player
                 stop
