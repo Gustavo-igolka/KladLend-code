@@ -79,7 +79,7 @@ every 1 second:
     loop all players:
         set {_p} to loop-player
         loop {cd.keys.%{_p}%::*}:
-            set {_key} to loop-value
+            set {_key} to loop-value-2
             if {cd.remaining::%{_key}%.%{_p}%} is set:
                 if {cd.remaining::%{_key}%.%{_p}%} > 0:
                     set {_rate} to getCooldownRate({_p}, {_key})
@@ -87,9 +87,9 @@ every 1 second:
                     if {cd.remaining::%{_key}%.%{_p}%} <= 0:
                         set {cd.remaining::%{_key}%.%{_p}%} to 0
         loop {cd.modifierSources.%{_p}%::*}:
-            set {_source} to loop-value
+            set {_source} to loop-value-2
             loop {cd.modifierKeys.%{_p}%.%{_source}%::*}:
-                set {_modifierKey} to loop-value
+                set {_modifierKey} to loop-value-3
                 if {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%} is set:
                     if {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%} <= now:
                         delete {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%}
