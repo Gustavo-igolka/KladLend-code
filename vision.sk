@@ -156,7 +156,7 @@ function visionBarClear(p: player):
 # Кулдауны в хотбаре
 # ---------------------------------------------------------
 # Одна способность: зелёным — готово, красным — осталось N секунд.
-# Заодно уменьшает остаток на 1 (вызывается ровно раз в секунду на игрока).
+# Функция только отображает значение; уменьшение выполняется в abilities.sk.
 function cdLine(p: player, key: text, label: text) :: text:
     set {_remaining} to getCooldownRemaining({_p}, {_key})
     if {_remaining} > 0:
