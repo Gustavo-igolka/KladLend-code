@@ -83,7 +83,7 @@ function anomalyStalkBlind(p: player):
     loop all players within 7 blocks of {_p}:
         if loop-player is not {_p}:
             if isManiac({char.%loop-player%}) is false:
-                execute console command "minecraft:effect give %name of loop-player% minecraft:blindness 3 0 true"
+                apply blindness to loop-player for 3 seconds
                 add 1 to {_hit}
     loop {dummy.list::*}:
         if {dummy.kind.%loop-value%} is "survivor":
@@ -349,12 +349,12 @@ on right click holding fishing rod:
                     awardXP(player, "denden", 30)
                 else:
                     send "&7Не за кого зацепиться." to player
-                loop 6 times:
+                loop 5 times:
                     if {_hit} is true:
                         if {_target} is alive:
                             push {_target} towards player with speed 1
                     wait 1 second
-                wait 24 seconds
+                wait 25 seconds
                 send "&a✔ Крюк снова готов!" to player
 
 on right click holding gunpowder:
@@ -512,12 +512,12 @@ on right click holding potion:
     cancel event
     if name of player's tool is "&fЗелье невидимости":
         if {char.%player%} is "andrey":
-            if tryCooldown(player, "andrey_invis", 50) is true:
+            if tryCooldown(player, "andrey_invis", 40) is true:
                 apply invisibility to player for 10 seconds
                 send "&fИспользовано: Зелье невидимости" to player
                 addAnger(player, 0.5)
                 awardXP(player, "andrey", 15)
-                wait 50 seconds
+                wait 40 seconds
                 send "&a✔ Зелье невидимости снова готово!" to player
 
 # ---------------------------------------------------------
@@ -697,9 +697,9 @@ on right click holding blaze rod:
                 if {_hit} is true:
                     set {_len} to distance between player and {_target}
                     necroBeam(player, {_len})
-                    apply slowness 2 to {_target} for 3 seconds
-                    apply glowing to {_target} for 3 seconds
-                    send "&5Магический луч попал: замедление и подсветка на 3 сек!" to player
+                    apply slowness 2 to {_target} for 5 seconds
+                    apply glowing to {_target} for 5 seconds
+                    send "&5Магический луч попал: замедление и подсветка на 5 сек!" to player
                     if {_target} is a player:
                         awardXP(player, "necromancer", 30)
                     else:
@@ -750,7 +750,7 @@ on right click holding splash potion:
                 # противников, поэтому там лечим только себя
                 if {event.misha.br_active} is true:
                     if health of player < max health of player:
-                        heal player by 4
+                        heal player by 3
                         send "&dИспользовано: Зелье исцеления (только на себя)" to player
                         addAnger(player, 0.5)
                         awardXP(player, "alexey", 15)
@@ -764,7 +764,7 @@ on right click holding splash potion:
                                 add 1 to {_healedCount}
                     loop all players within 4 blocks of player:
                         if {char.%loop-player%} is not "kirill":
-                            heal loop-player by 4
+                            heal loop-player by 3
                     send "&dИспользовано: Зелье исцеления" to player
                     if {_healedCount} > 0:
                         addAnger(player, 0.5 * {_healedCount})
@@ -897,7 +897,6 @@ on right click holding ghast tear:
 # ---------------------------------------------------------
 # РАТАТУЙ — выживший
 # ---------------------------------------------------------
-
 on right click holding clock:
     if {round.active} is true:
         if {round.live} is not true:
@@ -1000,11 +999,10 @@ function thomasBeam(p: player, len: number):
     loop floor({_len}) times:
         execute console command "/execute as %{_p}% at @s anchored eyes run particle minecraft:dust{color:[0.2,0.8,1.0],scale:1} ^ ^ ^%loop-number% 0 0 0 0 2 force"
 
-# Цель луча Томаса (или ничего). kind: "ally" — выживший / манекен-выживший,
-# "enemy" — убийца / манекен-убийца (в Батл Рояле — любой другой игрок).
+# Цель луча Томаса. Увеличенный ray size расширяет хитбоксы целей вокруг прицела.
 function thomasTarget(p: player, kind: text) :: entity:
     delete {_found}
-    set {_t} to {_p}'s target entity
+    set {_t} to target entity of {_p} with ray size 1
     if {_t} is a player:
         if {_t} is not {_p}:
             if distance between {_p} and {_t} <= {@thomasBeamRange}:
@@ -1026,13 +1024,75 @@ function thomasTarget(p: player, kind: text) :: entity:
                     set {_found} to {_t}
     return {_found}
 
+function thomasEndResist(p: player):
+    set {_target} to {thomas.resistTarget.%{_p}%}
+    delete {thomas.resistActive.%{_p}%}
+    delete {thomas.resistTarget.%{_p}%}
+    delete {thomas.resistToken.%{_p}%}
+    if {_p} is online:
+        remove slowness from {_p}
+    if {_target} is set:
+        if {_target} is alive:
+            remove resistance from {_target}
+
+# Томас фиксируется на выбранной цели максимум на 7 секунд.
+# Потеря прямой видимости, смерть/выход цели или любой полученный урон прерывают эффект.
+function thomasResist(p: player, t: entity):
+    set {_token} to now
+    set {thomas.resistActive.%{_p}%} to true
+    set {thomas.resistTarget.%{_p}%} to {_t}
+    set {thomas.resistToken.%{_p}%} to {_token}
+    apply slowness 4 to {_p} for 7 seconds
+    apply resistance 4 to {_t} for 7 seconds
+    send "&bТы закрепился на союзнике. Удерживай его в поле зрения 7 секунд!" to {_p}
+    if {_t} is a player:
+        send "&bТомас поддерживает тебя: Resistance IV на 7 секунд." to {_t}
+    else:
+        send "&b[DUMMY] Томас: Resistance IV на манекене на срок до 7 сек." to {_p}
+
+    loop 140 times:
+        wait 1 tick
+        if {thomas.resistToken.%{_p}%} is not {_token}:
+            stop loop
+        if {_p} is not online:
+            thomasEndResist({_p})
+            stop loop
+        if {_t} is a player:
+            if {_t} is not online:
+                thomasEndResist({_p})
+                stop loop
+        if {_t} is not alive:
+            thomasEndResist({_p})
+            if {_p} is online:
+                send "&cСоюзник больше не может поддерживать связь. Способность прервана." to {_p}
+            stop loop
+        if {_p} has no direct line of sight to {_t}:
+            thomasEndResist({_p})
+            send "&cТы потерял союзника из виду. Способность прервана." to {_p}
+            stop loop
+
+    if {thomas.resistToken.%{_p}%} is {_token}:
+        thomasEndResist({_p})
+        send "&aПоддержка завершена." to {_p}
+
+# Любое событие получения урона немедленно прерывает Стойкость.
+on damage:
+    if victim is a player:
+        if {char.%victim%} is "thomas":
+            if {thomas.resistActive.%victim%} is true:
+                thomasEndResist(victim)
+                send "&cПолученный урон прервал Стойкость!" to victim
+
+# Во время Стойкости Томас физически не может перемещаться.
+on player move:
+    if {thomas.resistActive.%player%} is true:
+        cancel event
+
 function thomasApply(p: player, t: entity, type: text):
     if {_t} is a player:
         addAnger({_p}, 0.5)
         awardXP({_p}, "thomas", 15)
         if {_type} is "speed":
-            # В БР союзников нет — бафф уходит Томасу, а не в жертву,
-            # иначе получалось бы, что ты усиливаешь противника
             if {event.misha.br_active} is true:
                 apply speed 1 to {_p} for 3 seconds
                 apply absorption 1 to {_p} for 3 seconds
@@ -1042,14 +1102,6 @@ function thomasApply(p: player, t: entity, type: text):
                 apply absorption 1 to {_t} for 3 seconds
                 send "&bЛуч попал: союзник получил Скорость + Оверхил!" to {_p}
                 send "&bПолучен баф: Скорость + Оверхил!" to {_t}
-        else if {_type} is "resist":
-            if {event.misha.br_active} is true:
-                apply resistance 3 to {_p} for 7 seconds
-                send "&bБатл Рояль: баф уходит тебе — Сильная стойкость!" to {_p}
-            else:
-                apply resistance 3 to {_t} for 7 seconds
-                send "&bЛуч попал: союзник получил Сильную стойкость!" to {_p}
-                send "&bПолучен баф: Сильная стойкость!" to {_t}
         else if {_type} is "slow":
             send "&bЛуч попал: замедление, подсветка и ошеломление!" to {_p}
             apply slowness 1 to {_t} for 5 seconds
@@ -1059,15 +1111,12 @@ function thomasApply(p: player, t: entity, type: text):
         if {_type} is "speed":
             apply speed 1 to {_t} for 3 seconds
             apply absorption 1 to {_t} for 3 seconds
-            send "&b[DUMMY] Томас: баф Скорость 1 + Оверхил на 3 сек (имеет смысл на манекене-выжившем)." to {_p}
+            send "&b[DUMMY] Томас: баф Скорость 1 + Оверхил на 3 сек." to {_p}
         else if {_type} is "slow":
             apply slowness 1 to {_t} for 5 seconds
             apply glowing to {_t} for 5 seconds
-            send "&b[DUMMY] Томас: замедление 1 + подсветка 5 сек + ошеломление 4 сек (имеет смысл на манекене-убийце)." to {_p}
+            send "&b[DUMMY] Томас: замедление 1 + подсветка 5 сек + ошеломление 4 сек." to {_p}
             dummyStatus({_t}, "&e[ОШЕЛОМЛЁН]", 4 seconds)
-        else if {_type} is "resist":
-            apply resistance 3 to {_t} for 7 seconds
-            send "&b[DUMMY] Томас: Сильная стойкость (резист 3) на 7 сек (имеет смысл на манекене-выжившем)." to {_p}
 
 function thomasCast(p: player, type: text):
     if {_type} is "speed":
@@ -1085,9 +1134,30 @@ function thomasCast(p: player, type: text):
         set {_cd} to 35
         set {_kind} to "ally"
         set {_ready} to "&a✔ Лук стойкости снова готов!"
+
+    if {_type} is "resist":
+        # В Батл Рояле союзников нет: сохраняем прежний личный баф.
+        if {event.misha.br_active} is true:
+            if tryCooldown({_p}, {_key}, {_cd}) is true:
+                apply resistance 3 to {_p} for 7 seconds
+                send "&bБатл Рояль: Сильная стойкость на 7 секунд." to {_p}
+                wait {_cd} seconds
+                send colored {_ready} to {_p}
+            stop
+        set {_target} to thomasTarget({_p}, "ally")
+        if {_target} is set:
+            if tryCooldown({_p}, {_key}, {_cd}) is true:
+                thomasBeam({_p}, distance between {_p} and {_target})
+                if {_target} is a player:
+                    addAnger({_p}, 0.5)
+                    awardXP({_p}, "thomas", 15)
+                thomasResist({_p}, {_target})
+        else:
+            thomasBeam({_p}, {@thomasBeamRange})
+            send "&7Луч ушёл в пустоту. Перезарядка не потрачена." to {_p}
+        stop
+
     if tryCooldown({_p}, {_key}, {_cd}) is true:
-        if {_type} is "resist":
-            apply slowness 1 to {_p} for 4 seconds
         set {_target} to thomasTarget({_p}, {_kind})
         if {_target} is set:
             thomasBeam({_p}, distance between {_p} and {_target})
@@ -1442,7 +1512,7 @@ on right click holding stick:
                     apply glowing to {_target} for 2 seconds
                     send "&cЛуч попал: урон, слепота и свечение на 2 сек!" to player
                     if {_target} is a player:
-                        execute console command "minecraft:effect give %name of {_target}% minecraft:blindness 2 0 true"
+                        apply blindness to {_target} for 2 seconds
                         damage {_target} by 2
                         awardXP(player, "anomaly", 30)
                     else:
@@ -1497,7 +1567,6 @@ on right click holding phantom membrane:
                         delete {anomaly.stalking.%player%}
                         anomalyStalkBlind(player)
                         send "&a✔ Способность истекла, ты снова видим." to player
-
 on right click holding tripwire hook:
     if {round.active} is true:
         if {round.live} is not true:
@@ -1539,7 +1608,7 @@ every 5 ticks:
                         if isManiac({char.%{_s}%}) is false:
                             if {alive.%{_s}%} is true:
                                 if distance between {_s} and {_trapLoc} < anomalyTrapRadius():
-                                    damage {_s} by 5
+                                    damage {_s} by 3
                                     apply slowness 4 to {_s} for 4 seconds
                                     maniacBoost({round.maniac}, 7, 1)
                                     send "&cКапкан сработал на %{_s}%!" to {round.maniac}
@@ -1583,15 +1652,15 @@ on right click holding paper:
             if tryCooldown(player, "mayor_perry", 23) is true:
                 set {mayor.parrying.%player%} to true
                 delete {mayor.parrySuccess.%player%}
-                apply slowness 5 to player for 2 seconds
-                apply resistance 5 to player for 2 seconds
+                apply slowness 5 to player for 3 seconds
+                apply resistance 5 to player for 3 seconds
                 send "&fТы приготовился парировать..." to player
-                wait 2 seconds
+                wait 3 seconds
                 delete {mayor.parrying.%player%}
                 if {mayor.parrySuccess.%player%} is not true:
-                    apply slowness 1 to player for 2 seconds
+                    apply slowness 1 to player for 3 seconds
                     send "&cПарирование не удалось..." to player
-                wait 21 seconds
+                wait 20 seconds
                 send "&a✔ Перри снова готово!" to player
 
 on damage:
@@ -1914,7 +1983,7 @@ on damage:
         if {char.%victim%} is "sanya":
             if {round.active} is true:
                 if event isn't cancelled:
-                    apply resistance 2 to victim for 3 seconds
+                    apply resistance 2 to victim for 6 seconds
 
 # --- Стойки Сани (турель/раздатчик): нельзя снимать с них броню правым кликом.
 #     Стойки без {sanyaOwner} (например, манекены) не затрагиваются. ---
@@ -1973,10 +2042,33 @@ function kirillOnCollision(p: player, m: player, mode: text):
 # --- Собственно рывок: толкает игрока и тикает, проверяя столкновение с
 #     живым убийцей на протяжении полёта. resolvedMode уже посчитан заранее
 #     в основном хендлере (base/bumper/ghost/maneuver). ---
+function kirillTryDashCollision(p: player, resolvedMode: text) :: boolean:
+    set {_nearest} to 9999
+    delete {_maniac}
+    loop all players:
+        if isManiac({char.%loop-player%}) is true:
+            if {alive.%loop-player%} is true:
+                set {_d} to distance between {_p} and loop-player
+                if {_d} < {_nearest}:
+                    set {_nearest} to {_d}
+                    set {_maniac} to loop-player
+    delete {_dummyHit}
+    set {_dm} to dummyNearest(location of {_p}, "maniac", {_nearest})
+    if {_dm} is set:
+        set {_dummyHit} to {_dm}
+        set {_nearest} to distance between {_p} and {_dm}
+    if {_nearest} < {@kirillHitRadius}:
+        set {kirill.dashHit.%{_p}%} to true
+        if {_dummyHit} is set:
+            dummyKirillCollision({_p}, {_dummyHit}, {_resolvedMode})
+        else if {_maniac} is set:
+            kirillOnCollision({_p}, {_maniac}, {_resolvedMode})
+        return true
+    return false
+
+# Проверка столкновения выполняется до импульса и после каждого тика движения:
+# так контакт в упор не теряется из-за смещения игрока в первый тик.
 function kirillPerformDash(p: player, resolvedMode: text):
-    # РЕБАЛАНС: сила рывков уменьшена вдвое (было 3.4 / 1.3 / 1.9).
-    # {_steps} (окно проверки столкновения в тиках) не менялось — оно зависит
-    # от времени полёта, а не от силы толчка.
     if {_resolvedMode} is "maneuver":
         set {_speed} to 1.7
         set {_steps} to 16
@@ -1984,11 +2076,12 @@ function kirillPerformDash(p: player, resolvedMode: text):
         set {_speed} to 0.65
         set {_steps} to 8
     else:
-        # "base" (незаряженный откат) и "bumper" — одна и та же базовая дистанция
         set {_speed} to 0.95
         set {_steps} to 10
 
     set {kirill.dashHit.%{_p}%} to false
+    if kirillTryDashCollision({_p}, {_resolvedMode}) is true:
+        stop
     push {_p} in direction of {_p} at speed {_speed}
 
     loop {_steps} times:
@@ -1997,26 +2090,8 @@ function kirillPerformDash(p: player, resolvedMode: text):
             stop loop
         if {kirill.dashHit.%{_p}%} is true:
             stop loop
-        set {_nearest} to 9999
-        delete {_maniac}
-        loop all players:
-            if isManiac({char.%loop-player%}) is true:
-                if {alive.%loop-player%} is true:
-                    set {_d} to distance between {_p} and loop-player
-                    if {_d} < {_nearest}:
-                        set {_nearest} to {_d}
-                        set {_maniac} to loop-player
-        delete {_dummyHit}
-        set {_dm} to dummyNearest(location of {_p}, "maniac", {_nearest})
-        if {_dm} is set:
-            set {_dummyHit} to {_dm}
-            set {_nearest} to distance between {_p} and {_dm}
-        if {_nearest} < {@kirillHitRadius}:
-            set {kirill.dashHit.%{_p}%} to true
-            if {_dummyHit} is set:
-                dummyKirillCollision({_p}, {_dummyHit}, {_resolvedMode})
-            else:
-                kirillOnCollision({_p}, {_maniac}, {_resolvedMode})
+        if kirillTryDashCollision({_p}, {_resolvedMode}) is true:
+            stop loop
 
     if {_resolvedMode} is "maneuver":
         apply slowness 3 to {_p} for 3 seconds
@@ -2651,7 +2726,8 @@ on right click holding iron axe:
                                             set {_best} to {_d}
                                             set {_target} to loop-player
             if {_target} is not set:
-                send "&7Рядом нет выжившего для захвата (радиус 3 блока)." to player
+                if tryCooldown(player, "samurai_slash", 30) is true:
+                    send "&7Рядом нет выжившего для захвата (радиус 3 блока)." to player
                 stop
             if tryCooldown(player, "samurai_slash", 30) is true:
                 set {_token} to now
