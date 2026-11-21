@@ -46,7 +46,7 @@ function projectInfectGenerator(p: player, loc: location):
 #     те же 5 сек. Функция projectSetDashStack() определена в abilities.sk. ---
 function projectApplyCureDebuff(target: player):
     projectSetDashStack({_target})
-    apply nausea 1 to {_target} for 5 seconds
+    apply nausea 3 to {_target} for 5 seconds
     apply slowness 2 to {_target} for 5 seconds
     send "&4Генератор сопротивлялся заражению — тебя тряхнуло!" to {_target}
     if {round.maniac} is set:
@@ -70,7 +70,7 @@ on right click on anvil:
             stop
         set {gen.holding.%player%} to {_loc}
         if {gen.infected.%{_loc}%} is true:
-            send actionbar "&c&lПрогресс: %{gen.progress.%{_loc}%}%%% (заражён!)" to player
+            send actionbar "&c&lПрогресс: %{gen.progress.%{_loc}%}%%%" to player
         else:
             send actionbar "&eПрогресс: %{gen.progress.%{_loc}%}%%%" to player
 
@@ -110,7 +110,7 @@ every 1 second:
                         send actionbar "&c&lЗаражение снято! Прогресс откатился до %{_base}%%%" to {_p}
                         projectApplyCureDebuff({_p})
                     else:
-                        send actionbar "&c&lПрогресс: %{gen.progress.%{_loc}%}%%% (заражён)" to {_p}
+                        send actionbar "&c&lПрогресс: %{gen.progress.%{_loc}%}%%%" to {_p}
                 else if {gen.progress.%{_loc}%} >= 100:
                     broadcast "&a&lГенератор починен!"
                     add 1 to {gen.done}
