@@ -340,7 +340,7 @@ every 1 second:
                 if {_m} is set:
                     apply slowness 4 to {_m} for 4 seconds
                     apply speed 1 to {_o} for 7 seconds
-                    send "&c[DUMMY] Капкан сработал на манекене: урон 5, замедление 4 на 4 сек." to {_o}
+                    send "&c[DUMMY] Капкан сработал на манекене: урон 3, замедление 4 на 4 сек." to {_o}
                     delete {anomaly.traps.%{_o}%::%{_idx}%}
 
 # --- Чистка списка от убитых/удалённых манекенов ---
