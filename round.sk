@@ -332,6 +332,12 @@ command /startround <text>:
         set {round.active} to true
         delete {round.live}
         delete {cdr::*}
+        delete {cd.remaining::*}
+        delete {cd.keys::*}
+        delete {cd.modifierSources::*}
+        delete {cd.modifierKeys::*}
+        delete {cd.modifier.rate::*}
+        delete {cd.modifier.until::*}
         set {round.map} to {_map}
         markMapPlayed({_map})
         set {round.survivorsAlive} to 0
