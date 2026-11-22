@@ -335,6 +335,7 @@ command /startround <text>:
         delete {round.live}
         delete {cdr::*}
         delete {cd.remaining::*}
+        delete {cd.lastUpdate::*}
         delete {cd.keys::*}
         delete {cd.modifierSources::*}
         delete {cd.modifierKeys::*}
