@@ -140,9 +140,13 @@ command /debugunlockskin <text> <text>:
 command /debugcdreset:
     permission: op
     trigger:
-        delete {cd.modifierSources::*}
-        delete {cd.modifierKeys::*}
-        delete {cd.modifier.rate::*}
-        delete {cd.modifier.until::*}
-        send "&a[DEBUG] Все множители перезарядки сброшены у всех игроков." to player
+        # Модификаторы хранятся во вложенных списках с индексом игрока.
+        # Поэтому очищаем каждый набор по конкретному игроку, а не общим wildcard.
+        loop all players:
+            set {_target} to loop-player
+            delete {cd.modifierSources.%{_target}%::*}
+            delete {cd.modifierKeys.%{_target}%::*}
+            delete {cd.modifier.rate.%{_target}%::*}
+            delete {cd.modifier.until.%{_target}%::*}
+        send "&a[DEBUG] Все множители перезарядки сброшены у всех онлайн-игроков." to player
 
