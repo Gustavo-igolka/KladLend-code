@@ -50,6 +50,8 @@ command /debugchar <text>:
             give_kirill_kit({_p})
         else if {_id} is "dartikil":
             give_dartikil_kit({_p})
+        else if {_id} is "detective":
+            give_detective_kit({_p})
         else if {_id} is "project":
             give_project_kit({_p})
         else if {_id} is "blind":
@@ -57,7 +59,7 @@ command /debugchar <text>:
         else if {_id} is "samurai":
             give_samurai_kit({_p})
         else:
-            send "&cНеизвестный id. Варианты: denden, necromancer, anomaly, project, blind, andrey, mihuilong, alexey, ilya, hacker, thomas, mayor, sanya, kirill, dartikil, samurai" to {_p}
+            send "&cНеизвестный id. Варианты: denden, necromancer, anomaly, project, blind, andrey, mihuilong, alexey, ilya, hacker, thomas, mayor, sanya, kirill, dartikil, detective, samurai" to {_p}
             stop
         set {char.%{_p}%} to {_id}
         applyCharacterSkin({_p}, {_id})
