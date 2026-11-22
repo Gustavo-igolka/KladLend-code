@@ -35,6 +35,8 @@ function getCharDisplayName(charid: text) :: text:
         return "Кирилл"
     else if {_charid} is "dartikil":
         return "Dartikil"
+    else if {_charid} is "detective":
+        return "Детектив"
     else if {_charid} is "project":
         return "The Project"
     else if {_charid} is "blind":
@@ -67,6 +69,7 @@ function openSurvivorChoiceMenu(p: player):
     set slot 4 of {_inv} to wooden sword named "&fИлья"
     set slot 5 of {_inv} to golden sword named "&7Маёр"
     set slot 12 of {_inv} to crossbow named "&6Dartikil"
+    set slot 13 of {_inv} to spyglass named "&bДетектив"
     # --- Поддержка ---
     set slot 7 of {_inv} to sugar named "&dМякШмяка"
     set slot 8 of {_inv} to bow named "&bТомас"
@@ -126,6 +129,8 @@ on inventory click:
                     set {char.survivorPref.%player%} to "sanya"
                 else if clicked slot is 12:
                     set {char.survivorPref.%player%} to "dartikil"
+                else if clicked slot is 13:
+                    set {char.survivorPref.%player%} to "detective"
                 else:
                     stop
                 close player's inventory
@@ -329,5 +334,19 @@ function giveSurvivorKit(p: player, charid: text):
         give_kirill_kit({_p})
     else if {_charid} is "dartikil":
         give_dartikil_kit({_p})
+    else if {_charid} is "detective":
+        give_detective_kit({_p})
     else:
         give_andrey_kit({_p})
+
+
+# Детектив — поддержка. Ускоряет восстановление способностей союзников,
+# собирает очки исследования и призывает усиливающегося голема.
+function give_detective_kit(p: player):
+    clear inventory of {_p}
+    give spyglass named "&bИсследование" to {_p}
+    give iron ingot named "&7Призыв голема" to {_p}
+    set {detective.research.%{_p}%} to 0
+    set max health of {_p} to 8
+    wait 1 tick
+    set health of {_p} to 8
