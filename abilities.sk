@@ -825,11 +825,16 @@ on right click holding splash potion:
                     set {_healedCount} to 0
                     loop all players within 4 blocks of player:
                         if loop-player is not player:
-                            if health of loop-player < max health of loop-player:
-                                add 1 to {_healedCount}
+                            if {alive.%loop-player%} is true:
+                                if isManiac({char.%loop-player%}) is false:
+                                    if {char.%loop-player%} is not "kirill":
+                                        if health of loop-player < max health of loop-player:
+                                            add 1 to {_healedCount}
                     loop all players within 4 blocks of player:
-                        if {char.%loop-player%} is not "kirill":
-                            heal loop-player by 3
+                        if {alive.%loop-player%} is true:
+                            if isManiac({char.%loop-player%}) is false:
+                                if {char.%loop-player%} is not "kirill":
+                                    heal loop-player by 3
                     send "&dИспользовано: Зелье исцеления" to player
                     if {_healedCount} > 0:
                         addAnger(player, 0.5 * {_healedCount})
