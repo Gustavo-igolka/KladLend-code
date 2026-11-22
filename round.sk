@@ -59,6 +59,8 @@ function getSurvivorClassDisplayName(charid: text) :: text:
         return "Страж"
     else if {_charid} is "dartikil":
         return "Страж"
+    else if {_charid} is "detective":
+        return "Поддержка"
     else if {_charid} is "alexey":
         return "Поддержка"
     else if {_charid} is "thomas":
@@ -415,6 +417,8 @@ command /startround <text>:
                 give_kirill_kit({_p})
             else if {char.%{_p}%} is "dartikil":
                 give_dartikil_kit({_p})
+            else if {char.%{_p}%} is "detective":
+                give_detective_kit({_p})
             else if {char.%{_p}%} is "project":
                 give_project_kit({_p})
             else if {char.%{_p}%} is "blind":
@@ -798,6 +802,16 @@ function stopRound(message: text):
     loop {necro.activeZombies::*}:
         kill loop-value
     delete {necro.activeZombies::*}
+
+    if {detective.activeGolem} is set:
+        if {detective.activeGolem} is alive:
+            kill {detective.activeGolem}
+        delete {detective.golemOwner.%{detective.activeGolem}%}
+        delete {detective.golemHealth.%{detective.activeGolem}%}
+        delete {detective.activeGolem}
+    delete {detective.golemOwner::*}
+    delete {detective.golemHealth::*}
+    delete {detective.research::*}
 
     loop {samurai.blessed::*}:
         kill loop-value
