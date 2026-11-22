@@ -90,7 +90,9 @@ function updateCooldown(p: player, key: text):
         remove {_progress} from {cd.remaining::%{_key}%.%{_p}%}
         if {cd.remaining::%{_key}%.%{_p}%} <= 0:
             set {cd.remaining::%{_key}%.%{_p}%} to 0
-    set {cd.lastUpdate::%{_key}%.%{_p}%} to now
+        # Не сдвигаем отметку при нулевом результате seconds of timespan:
+        # иначе частые вызовы будут каждый раз терять долю секунды.
+        set {cd.lastUpdate::%{_key}%.%{_p}%} to now
 
 function getCooldownRemaining(p: player, key: text) :: number:
     updateCooldown({_p}, {_key})
