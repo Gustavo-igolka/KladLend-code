@@ -101,6 +101,10 @@ every 1 second:
                     if {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%} <= now:
                         delete {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%}
                         delete {cd.modifier.rate.%{_p}%.%{_source}%.%{_modifierKey}%}
+                        remove {_modifierKey} from {cd.modifierKeys.%{_p}%.%{_source}%::*}
+                        if size of {cd.modifierKeys.%{_p}%.%{_source}%::*} is 0:
+                            delete {cd.modifierKeys.%{_p}%.%{_source}%::*}
+                            remove {_source} from {cd.modifierSources.%{_p}%::*}
 
 # ---------------------------------------------------------
 # СКОРОСТЬ УБИЙЦ — единая система (раньше speed ставили сразу в нескольких
@@ -3026,21 +3030,36 @@ on right click holding spyglass:
             send "&eТы ошеломлён и не можешь использовать способности!" to player
             stop
         if tryCooldown(player, "detective_research", 45) is true:
-            set {_source} to "detective_%uuid of player%"
+            # Один общий источник не позволяет нескольким срабатываниям этого баффа складываться.
+            set {_source} to "detective_research"
             set {_affected} to 0
+            delete {_affectedPlayers::*}
             loop all players:
                 set {_target} to loop-player
-                if {char.%{_target}%} is set:
-                    if isManiac({char.%{_target}%}) is false:
-                        if {alive.%{_target}%} is true:
-                            if distance between player and {_target} <= 5:
-                                add 1 to {_affected}
-                                if {detective.research.%player%} < 12:
-                                    add 1 to {detective.research.%player%}
-                                setCooldownModifier({_target}, {_source}, "all_except_detective", 1.5, 5)
-                                send "&bДетектив ускорил восстановление твоих способностей на 5 секунд." to {_target}
+                # Детектив не усиливает себя; убийца исключается и по роли, и по round.maniac.
+                if {_target} is not player:
+                    if {_target} is not {round.maniac}:
+                        if {char.%{_target}%} is set:
+                            if isManiac({char.%{_target}%}) is false:
+                                if {alive.%{_target}%} is true:
+                                    if distance between player and {_target} <= 5:
+                                        add 1 to {_affected}
+                                        add {_target} to {_affectedPlayers::*}
+                                        if {detective.research.%player%} < 12:
+                                            add 1 to {detective.research.%player%}
+                                        setCooldownModifier({_target}, {_source}, "all_except_detective", 1.5, 5)
+                                        send "&bДетектив ускорил восстановление твоих способностей на 5 секунд." to {_target}
             send "&bИсследование завершено. Задето выживших: %{_affected}%. Очки исследования: %{detective.research.%player%}%/12." to player
             awardXP(player, "detective", 20)
+            # Снимаем именно источник Детектива, не затрагивая другие модификаторы перезарядки.
+            wait 5 seconds
+            loop {_affectedPlayers::*}:
+                set {_target} to loop-value
+                delete {cd.modifier.until.%{_target}%.%{_source}%.all_except_detective}
+                delete {cd.modifier.rate.%{_target}%.%{_source}%.all_except_detective}
+                remove "all_except_detective" from {cd.modifierKeys.%{_target}%.%{_source}%::*}
+                remove {_source} from {cd.modifierSources.%{_target}%::*}
+                delete {cd.modifierKeys.%{_target}%.%{_source}%::*}
 
 # Железный слиток призывает единственного активного голема.
 on right click holding iron ingot:
