@@ -258,7 +258,7 @@ on right click holding fermented spider eye:
                 stop
             if tryCooldown(player, "blind_rage", 40) is true:
                 apply strength 1 to player for 3 seconds
-                execute console command "minecraft:effect give %name of player% minecraft:blindness 3 0 true"
+                apply blindness to player for 3 seconds
                 send "&cСлепая ярость: сила, но ты ничего не видишь!" to player
                 awardXP(player, "blind", 10)
                 wait 40 seconds
