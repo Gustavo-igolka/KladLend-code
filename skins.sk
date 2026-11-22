@@ -184,6 +184,8 @@ function getCharIcon(charid: text) :: item type:
         return leather
     else if {_charid} is "dartikil":
         return crossbow
+    else if {_charid} is "detective":
+        return spyglass
     else if {_charid} is "project":
         return iron axe
     else if {_charid} is "blind":
@@ -320,6 +322,7 @@ function openSkinCharSelect(p: player, mode: text):
     set slot 16 of {_inv} to getCharIcon("alexey") named "&dМякШмяка"
     set slot 17 of {_inv} to getCharIcon("thomas") named "&bТомас"
     set slot 18 of {_inv} to getCharIcon("sanya") named "&2Саня"
+    set slot 19 of {_inv} to getCharIcon("detective") named "&bДетектив"
     set {skinmenu.inv.%{_p}%} to {_inv}
     set {skinmenu.mode.%{_p}%} to {_mode}
     set {skinmenu.stage.%{_p}%} to "charselect"
@@ -358,6 +361,8 @@ function charidForSlot(slot: number) :: text:
         return "thomas"
     else if {_slot} is 18:
         return "sanya"
+    else if {_slot} is 19:
+        return "detective"
     return ""
 
 # Кладёт голову в слот: с припиской — в описании (lore), без — просто имя.
