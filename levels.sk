@@ -126,6 +126,7 @@ command /levels:
         set slot 16 of {_inv} to sugar named "&dМякШмяка &7(Ур. %getCharLevel(player, "alexey")%)"
         set slot 17 of {_inv} to bow named "&bТомас &7(Ур. %getCharLevel(player, "thomas")%)"
         set slot 18 of {_inv} to iron nugget named "&2Саня &7(Ур. %getCharLevel(player, "sanya")%)"
+        set slot 19 of {_inv} to spyglass named "&bДетектив &7(Ур. %getCharLevel(player, "detective")%)"
         set {levelsmenu.inv.%player%} to {_inv}
         open {_inv} to player
 
