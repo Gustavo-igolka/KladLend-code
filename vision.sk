@@ -117,6 +117,10 @@ every 1 second:
                     set {_prefix} to "&6Заряды &f%dartCharges({_p})%/3 &8| "
                     if {dart.pistolBroken.%{_p}%} is true:
                         set {_prefix} to "%{_prefix}%&c[пистолет сломан] &8| "
+                else if {char.%{_p}%} is "detective":
+                    if {detective.research.%{_p}%} is not set:
+                        set {detective.research.%{_p}%} to 0
+                    set {_prefix} to "&bИсследование &f%{detective.research.%{_p}%}%/12 &8| "
                 if {_bar} is not "":
                     send actionbar "%{_prefix}%%{_bar}%" to {_p}
 
@@ -177,6 +181,9 @@ function cdBar(p: player) :: text:
     else if {_c} is "hacker":
         set {_k::*} to "hacker_teleport" and "hacker_cheat"
         set {_l::*} to "Телепорт" and "Сила"
+    else if {_c} is "detective":
+        set {_k::*} to "detective_research" and "detective_golem"
+        set {_l::*} to "Исследование" and "Голем"
     else if {_c} is "dartikil":
         set {_k::*} to "dart_coin", "dart_pistol", "dart_sign" and "dart_hat"
         set {_l::*} to "Монета", "Пистолет", "Знак" and "Шляпа"
