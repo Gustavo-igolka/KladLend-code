@@ -3055,11 +3055,14 @@ on right click holding spyglass:
             wait 5 seconds
             loop {_affectedPlayers::*}:
                 set {_target} to loop-value
-                delete {cd.modifier.until.%{_target}%.%{_source}%.all_except_detective}
-                delete {cd.modifier.rate.%{_target}%.%{_source}%.all_except_detective}
-                remove "all_except_detective" from {cd.modifierKeys.%{_target}%.%{_source}%::*}
-                remove {_source} from {cd.modifierSources.%{_target}%::*}
-                delete {cd.modifierKeys.%{_target}%.%{_source}%::*}
+                # Если другой Детектив обновил общий бафф, не снимаем его раньше срока.
+                if {cd.modifier.until.%{_target}%.%{_source}%.all_except_detective} is set:
+                    if {cd.modifier.until.%{_target}%.%{_source}%.all_except_detective} <= now:
+                        delete {cd.modifier.until.%{_target}%.%{_source}%.all_except_detective}
+                        delete {cd.modifier.rate.%{_target}%.%{_source}%.all_except_detective}
+                        remove "all_except_detective" from {cd.modifierKeys.%{_target}%.%{_source}%::*}
+                        remove {_source} from {cd.modifierSources.%{_target}%::*}
+                        delete {cd.modifierKeys.%{_target}%.%{_source}%::*}
 
 # Железный слиток призывает единственного активного голема.
 on right click holding iron ingot:
