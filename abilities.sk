@@ -57,6 +57,10 @@ function getCooldownRate(p: player, key: text) :: number:
 # rate 1.5 ускоряет восстановление в 1.5 раза; rate 0.5 замедляет вдвое.
 # source — уникальный ID эффекта, независимые эффекты не перезаписывают друг друга.
 function setCooldownModifier(p: player, source: text, key: text, rate: number, secs: number):
+    # Сначала фиксируем прогресс по старой скорости, чтобы новый бафф
+    # не применялся задним числом к уже прошедшему времени.
+    loop {cd.keys.%{_p}%::*}:
+        updateCooldown({_p}, loop-value)
     set {cd.modifier.rate.%{_p}%.%{_source}%.%{_key}%} to {_rate}
     set {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} to now + ("%{_secs}% seconds" parsed as timespan)
     if {_source} is not in {cd.modifierSources.%{_p}%::*}:
@@ -64,15 +68,46 @@ function setCooldownModifier(p: player, source: text, key: text, rate: number, s
     if {_key} is not in {cd.modifierKeys.%{_p}%.%{_source}%::*}:
         add {_key} to {cd.modifierKeys.%{_p}%.%{_source}%::*}
 
+# Обновляет остаток по фактически прошедшему времени.
+# Повторный вызов в ту же секунду не ускоряет перезарядку:
+# учитывается только интервал с момента последнего обновления.
+function updateCooldown(p: player, key: text):
+    if {cd.remaining::%{_key}%.%{_p}%} is not set:
+        delete {cd.lastUpdate::%{_key}%.%{_p}%}
+        stop
+    if {cd.remaining::%{_key}%.%{_p}%} <= 0:
+        set {cd.remaining::%{_key}%.%{_p}%} to 0
+        delete {cd.lastUpdate::%{_key}%.%{_p}%}
+        stop
+    if {cd.lastUpdate::%{_key}%.%{_p}%} is not set:
+        set {cd.lastUpdate::%{_key}%.%{_p}%} to now
+        stop
+    set {_elapsed} to difference between now and {cd.lastUpdate::%{_key}%.%{_p}%}
+    set {_elapsedSeconds} to seconds of {_elapsed}
+    if {_elapsedSeconds} > 0:
+        set {_rate} to getCooldownRate({_p}, {_key})
+        set {_progress} to {_elapsedSeconds} * {_rate}
+        remove {_progress} from {cd.remaining::%{_key}%.%{_p}%}
+        if {cd.remaining::%{_key}%.%{_p}%} <= 0:
+            set {cd.remaining::%{_key}%.%{_p}%} to 0
+    set {cd.lastUpdate::%{_key}%.%{_p}%} to now
+
 function getCooldownRemaining(p: player, key: text) :: number:
+    updateCooldown({_p}, {_key})
     if {cd.remaining::%{_key}%.%{_p}%} is set:
         return {cd.remaining::%{_key}%.%{_p}%}
     return 0
 
 function setCooldownRemaining(p: player, key: text, secs: number):
     set {cd.remaining::%{_key}%.%{_p}%} to {_secs}
+    set {cd.lastUpdate::%{_key}%.%{_p}%} to now
     if {_key} is not in {cd.keys.%{_p}%::*}:
         add {_key} to {cd.keys.%{_p}%::*}
+
+function clearCooldown(p: player, key: text):
+    delete {cd.remaining::%{_key}%.%{_p}%}
+    delete {cd.lastUpdate::%{_key}%.%{_p}%}
+    remove {_key} from {cd.keys.%{_p}%::*}
 
 function tryCooldown(p: player, key: text, secs: number) :: boolean:
     if getCooldownRemaining({_p}, {_key}) > 0:
@@ -81,18 +116,14 @@ function tryCooldown(p: player, key: text, secs: number) :: boolean:
     setCooldownRemaining({_p}, {_key}, {_secs})
     return true
 
-# Единый тикер перезарядок и сроков модификаторов.
+# Единый тикер: прогресс зависит от реального времени между обновлениями,
+# а не от количества запусков периодического события.
 every 1 second:
     loop all players:
         set {_p} to loop-player
         loop {cd.keys.%{_p}%::*}:
             set {_key} to loop-value-2
-            if {cd.remaining::%{_key}%.%{_p}%} is set:
-                if {cd.remaining::%{_key}%.%{_p}%} > 0:
-                    set {_rate} to getCooldownRate({_p}, {_key})
-                    remove {_rate} from {cd.remaining::%{_key}%.%{_p}%}
-                    if {cd.remaining::%{_key}%.%{_p}%} <= 0:
-                        set {cd.remaining::%{_key}%.%{_p}%} to 0
+            updateCooldown({_p}, {_key})
         loop {cd.modifierSources.%{_p}%::*}:
             set {_source} to loop-value-2
             loop {cd.modifierKeys.%{_p}%.%{_source}%::*}:
@@ -1760,7 +1791,7 @@ on damage:
                             set {mayor.power.%victim%} to true
                             grantMayorAbsorption(victim)
                             delete {cd.mayor_strike.%victim%}
-                            delete {cd.remaining::mayor_strike.%victim%}
+                            clearCooldown(victim, "mayor_strike")
                             delete {cdr::mayor_strike.%victim%}
                             addAnger(victim, 1)
                             awardXP(victim, "mayor", 30)
