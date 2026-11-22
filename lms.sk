@@ -45,6 +45,9 @@ function getStoryLmsSound(kc: text, sc: text) :: text:
     else if {_kc} is "blind":
         if {_sc} is "mayor":
             return "kladlend:apokalipsis_neo"
+    else if {_kc} is "samurai":
+        if {_sc} is "detective":
+            return "kladlend:fatal_ritual"
     return ""
 
 # Название трека для объявления в чате. Известным трекам — красивое имя,
