@@ -44,6 +44,13 @@ function getCooldownRate(p: player, key: text) :: number:
             if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} is set:
                 if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} > now:
                     set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.%{_key}%}
+        # Специальный глобальный модификатор Детектива: ускоряет всё,
+        # кроме двух собственных способностей Детектива.
+        if {_key} is not "detective_research":
+            if {_key} is not "detective_golem":
+                if {cd.modifier.until.%{_p}%.%{_source}%.all_except_detective} is set:
+                    if {cd.modifier.until.%{_p}%.%{_source}%.all_except_detective} > now:
+                        set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.all_except_detective}
     return {_rate}
 
 # key = "all" — все способности; иначе — только способность с таким ID.
@@ -2990,3 +2997,114 @@ on quit:
         delete {samurai.grabbing.%player%}
         delete {samurai.grabTarget.%player%}
         delete {samurai.grabToken.%player%}
+
+
+# =========================================================
+# ДЕТЕКТИВ — поддержка / контроль через исследование и голема
+# =========================================================
+
+# Подзорная труба используется только как кнопка способности.
+on right click holding spyglass:
+    if name of player's tool is "&bИсследование":
+        cancel event
+        if {char.%player%} is not "detective":
+            stop
+        if {round.active} is true:
+            if {round.live} is not true:
+                stop
+            if {alive.%player%} is not true:
+                stop
+        if {stunned.%player%} is true:
+            send "&cТы оглушён и не можешь использовать способности!" to player
+            stop
+        if {staggered.%player%} is true:
+            send "&eТы ошеломлён и не можешь использовать способности!" to player
+            stop
+        if tryCooldown(player, "detective_research", 45) is true:
+            set {_source} to "detective_%uuid of player%"
+            set {_affected} to 0
+            loop all players:
+                set {_target} to loop-player
+                if {char.%{_target}%} is set:
+                    if isManiac({char.%{_target}%}) is false:
+                        if {alive.%{_target}%} is true:
+                            if distance between player and {_target} <= 5:
+                                add 1 to {_affected}
+                                if {detective.research.%player%} < 12:
+                                    add 1 to {detective.research.%player%}
+                                setCooldownModifier({_target}, {_source}, "all_except_detective", 1.5, 5)
+                                send "&bДетектив ускорил восстановление твоих способностей на 5 секунд." to {_target}
+            send "&bИсследование завершено. Задето выживших: %{_affected}%. Очки исследования: %{detective.research.%player%}%/12." to player
+            awardXP(player, "detective", 20)
+
+# Железный слиток призывает единственного активного голема.
+on right click holding iron ingot:
+    if name of player's tool is "&7Призыв голема":
+        cancel event
+        if {char.%player%} is not "detective":
+            stop
+        if {round.active} is true:
+            if {round.live} is not true:
+                stop
+            if {alive.%player%} is not true:
+                stop
+        if {stunned.%player%} is true:
+            send "&cТы оглушён и не можешь использовать способности!" to player
+            stop
+        if {staggered.%player%} is true:
+            send "&eТы ошеломлён и не можешь использовать способности!" to player
+            stop
+        if {detective.research.%player%} < 3:
+            send "&cНужно минимум 3 очка исследования для призыва голема." to player
+            stop
+        if {detective.activeGolem} is set:
+            if {detective.activeGolem} is alive:
+                send "&cГолем уже существует. Дождись его исчезновения." to player
+                stop
+            delete {detective.activeGolem}
+        if tryCooldown(player, "detective_golem", 60) is true:
+            set {_research} to {detective.research.%player%}
+            set {_bonusSteps} to floor((({_research} - 3) / 3))
+            set {_golemHealth} to 7 + ({_bonusSteps} * 0.5)
+            spawn an iron golem at location of player
+            set {_golem} to last spawned entity
+            set max health of {_golem} to {_golemHealth}
+            set health of {_golem} to {_golemHealth}
+            set {detective.activeGolem} to {_golem}
+            set {detective.golemOwner.%{_golem}%} to player
+            set {detective.golemHealth.%{_golem}%} to {_golemHealth}
+            set {detective.research.%player%} to 0
+            if {round.maniac} is set:
+                set target of {_golem} to {round.maniac}
+            send "&bГолем призван! Здоровье: %{_golemHealth}% сердца. Очки исследования потрачены." to player
+            awardXP(player, "detective", 30)
+            wait 30 seconds
+            if {detective.activeGolem} is {_golem}:
+                if {_golem} is alive:
+                    kill {_golem}
+                delete {detective.activeGolem}
+                delete {detective.golemOwner.%{_golem}%}
+                delete {detective.golemHealth.%{_golem}%}
+                send "&7Голем исчез." to player
+
+# Голем целится только в убийцу. Его удары отталкивают, но не наносят урон.
+on entity target:
+    if event-entity is an iron golem:
+        if {detective.golemOwner.%event-entity%} is set:
+            if {round.maniac} is set:
+                set target of event-entity to {round.maniac}
+
+on damage:
+    if attacker is an iron golem:
+        if {detective.golemOwner.%attacker%} is set:
+            cancel event
+            if victim is a player:
+                if isManiac({char.%victim%}) is true:
+                    push victim away from attacker with speed 1.2
+
+on death of an iron golem:
+    if {detective.golemOwner.%victim%} is set:
+        if {detective.activeGolem} is victim:
+            delete {detective.activeGolem}
+        delete {detective.golemOwner.%victim%}
+        delete {detective.golemHealth.%victim%}
