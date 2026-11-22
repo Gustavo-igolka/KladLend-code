@@ -63,6 +63,8 @@ function lmsTrackTitle(sound: text) :: text:
         return "Apokalipsis Neo"
     else if {_sound} is "kladlend:divine_game":
         return "Divine Game"
+    else if {_sound} is "kladlend:fatal_ritual":
+        return "FATAL RITUAL"
     else if {_sound} is "kladlend:big_game":
         return "BIG GAME"
     else if {_sound} is "kladlend:holiday_now_run":
