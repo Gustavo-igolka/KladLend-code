@@ -136,3 +136,13 @@ command /debugunlockskin <text> <text>:
 # Если понадобится — можно отдельно накинуть NPC-манекен (Citizens) как
 # неподвижную "жертву" для тестов урона/абилок, скажи, сделаю.
 # =========================================================
+# --- Сброс всех временных множителей перезарядки у всех игроков. ---
+command /debugcdreset:
+    permission: op
+    trigger:
+        delete {cd.modifierSources::*}
+        delete {cd.modifierKeys::*}
+        delete {cd.modifier.rate::*}
+        delete {cd.modifier.until::*}
+        send "&a[DEBUG] Все множители перезарядки сброшены у всех игроков." to player
+
