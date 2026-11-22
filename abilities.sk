@@ -3111,6 +3111,7 @@ on damage:
 
 on death of an iron golem:
     if {detective.golemOwner.%victim%} is set:
+        clear drops
         if {detective.activeGolem} is victim:
             delete {detective.activeGolem}
         delete {detective.golemOwner.%victim%}
