@@ -136,6 +136,26 @@ command /debugunlockskin <text> <text>:
 # Если понадобится — можно отдельно накинуть NPC-манекен (Citizens) как
 # неподвижную "жертву" для тестов урона/абилок, скажи, сделаю.
 # =========================================================
+# --- Диагностика текущих перезарядок и активных множителей игрока. ---
+command /debugcdstatus:
+    permission: op
+    trigger:
+        send "&e[DEBUG] Текущие перезарядки игрока %player%:" to player
+        loop {cd.keys.%player%::*}:
+            set {_key} to loop-value
+            set {_remaining} to getCooldownRemaining(player, {_key})
+            set {_rate} to getCooldownRate(player, {_key})
+            send "&7- %{_key}%: осталось %{_remaining}% с; скорость x%{_rate}%" to player
+        if size of {cd.modifierSources.%player%::*} is 0:
+            send "&aАктивных источников множителей нет." to player
+        else:
+            send "&eИсточники множителей:" to player
+            loop {cd.modifierSources.%player%::*}:
+                set {_source} to loop-value
+                loop {cd.modifierKeys.%player%.%{_source}%::*}:
+                    set {_modifierKey} to loop-value-2
+                    send "&7- %{_source}% / %{_modifierKey}%: x%{cd.modifier.rate.%player%.%{_source}%.%{_modifierKey}%}%; до %{cd.modifier.until.%player%.%{_source}%.%{_modifierKey}%}%" to player
+
 # --- Сброс всех временных множителей перезарядки у всех игроков. ---
 command /debugcdreset:
     permission: op
