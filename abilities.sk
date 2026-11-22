@@ -3095,12 +3095,19 @@ on entity target:
                 set target of event-entity to {round.maniac}
 
 on damage:
+    # Удары голема не наносят урон: вместо этого убийца отталкивается.
     if attacker is an iron golem:
         if {detective.golemOwner.%attacker%} is set:
             cancel event
             if victim is a player:
                 if isManiac({char.%victim%}) is true:
                     push victim away from attacker with speed 1.2
+    # Выжившие не могут случайно уничтожить собственного голема.
+    if victim is an iron golem:
+        if {detective.golemOwner.%victim%} is set:
+            if attacker is a player:
+                if isManiac({char.%attacker%}) is false:
+                    cancel event
 
 on death of an iron golem:
     if {detective.golemOwner.%victim%} is set:
