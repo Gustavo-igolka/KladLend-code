@@ -1,0 +1,139 @@
+# =========================================================
+# lobbysettings.sk — режим карт, отказ от роли убийцы и AFK.
+# =========================================================
+
+command /mapmode <text>:
+    permission: op
+    trigger:
+        if arg-1 is "classic":
+            set {map.mode} to "classic"
+            broadcast "&aРежим выбора карт: классический."
+        else if arg-1 is "vote":
+            set {map.mode} to "vote"
+            broadcast "&aРежим выбора карт: голосование за 30 секунд до раунда."
+        else:
+            send "&cИспользование: /mapmode <classic|vote>" to player
+
+command /nokiller:
+    trigger:
+        if {killer.disabled.%player%} is true:
+            delete {killer.disabled.%player%}
+            send "&aТы снова можешь стать убийцей." to player
+        else:
+            set {killer.disabled.%player%} to true
+            send "&eТы больше не будешь назначаться убийцей. Ты участвуешь только за выжившего." to player
+
+command /afk:
+    trigger:
+        if {afk.%player%} is true:
+            delete {afk.%player%}
+            send "&aAFK выключен. Ты снова участвуешь в раундах." to player
+        else:
+            if {round.active} is true:
+                send "&cНельзя включить AFK во время раунда. Дождись возвращения в лобби." to player
+                stop
+            set {afk.%player%} to true
+            close player's inventory
+            send "&7AFK включён. Ты исключён из обычных раундов и Батл Рояля." to player
+
+function startMapVote() :: text:
+    delete {mapvote.options::*}
+    delete {mapvote.votes::*}
+    add 1 to {mapvote.token}
+    set {_token} to {mapvote.token}
+
+    if size of {maps::*} is 0:
+        return ""
+
+    delete {_pool::*}
+    loop {maps::*}:
+        if {maps.played::*} does not contain loop-value:
+            add loop-value to {_pool::*}
+    if size of {_pool::*} is 0:
+        loop {maps::*}:
+            if size of {maps::*} is 1:
+                add loop-value to {_pool::*}
+            else if loop-value is not {maps.last}:
+                add loop-value to {_pool::*}
+    if size of {_pool::*} is 0:
+        loop {maps::*}:
+            add loop-value to {_pool::*}
+
+    loop 3 times:
+        if size of {_pool::*} > 0:
+            set {_i} to a random integer between 1 and size of {_pool::*}
+            add {_pool::%{_i}%} to {mapvote.options::*}
+            remove {_pool::%{_i}%} from {_pool::*}
+
+    if size of {mapvote.options::*} is 0:
+        return ""
+
+    broadcast "&6&lГОЛОСОВАНИЕ ЗА КАРТУ! &eУ вас 30 секунд."
+    loop all players:
+        if {afk.%loop-player%} is not true:
+            set {_inv} to a new chest inventory with 3 rows named "&6Выбор карты"
+            loop {mapvote.options::*}:
+                if loop-number is 1:
+                    set slot 11 of {_inv} to map named "&e%loop-value%" with lore "&7Нажми, чтобы проголосовать"
+                else if loop-number is 2:
+                    set slot 13 of {_inv} to map named "&e%loop-value%" with lore "&7Нажми, чтобы проголосовать"
+                else if loop-number is 3:
+                    set slot 15 of {_inv} to map named "&e%loop-value%" with lore "&7Нажми, чтобы проголосовать"
+            open {_inv} to loop-player
+
+    wait 30 seconds
+    if {mapvote.token} is not {_token}:
+        return ""
+
+    delete {_leaders::*}
+    set {_maxVotes} to -1
+    loop {mapvote.options::*}:
+        set {_map} to loop-value
+        set {_count} to 0
+        loop all players:
+            if {mapvote.vote.%loop-player%} is {_map}:
+                add 1 to {_count}
+        if {_count} > {_maxVotes}:
+            set {_maxVotes} to {_count}
+            delete {_leaders::*}
+            add {_map} to {_leaders::*}
+        else if {_count} is {_maxVotes}:
+            add {_map} to {_leaders::*}
+
+    set {_winnerIndex} to a random integer between 1 and size of {_leaders::*}
+    set {_winner} to {_leaders::%{_winnerIndex}%}
+
+    # Все предложенные карты считаются сыгранными в текущем цикле:
+    # это не даёт им сразу повторно появиться в следующих голосованиях.
+    loop {mapvote.options::*}:
+        if {maps.played::*} does not contain loop-value:
+            add loop-value to {maps.played::*}
+    set {maps.last} to {_winner}
+    broadcast "&aВыбрана карта: &f%{_winner}% &7(голосов: %{_maxVotes}%)."
+    loop all players:
+        if name of player's current inventory is "&6Выбор карты":
+            close player's inventory
+    delete {mapvote.votes::*}
+    return {_winner}
+
+on inventory click:
+    if name of event-inventory is "&6Выбор карты":
+        cancel event
+        if {afk.%player%} is true:
+            close player's inventory
+            stop
+        if clicked slot is 11:
+            set {_i} to 1
+        else if clicked slot is 13:
+            set {_i} to 2
+        else if clicked slot is 15:
+            set {_i} to 3
+        else:
+            stop
+        if {mapvote.options::%{_i}%} is set:
+            set {mapvote.vote.%player%} to {mapvote.options::%{_i}%}
+            send "&aТвой голос: &f%{mapvote.options::%{_i}%}%" to player
+            close player's inventory
+
+on join:
+    delete {mapvote.vote.%player%}
