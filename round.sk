@@ -389,15 +389,12 @@ command /startround <text>:
                             set {_sChar} to {char.survivorPref.%{_p}%}
                         set {char.%{_p}%} to {_sChar}
 
-        # --- Выдаём наборы всем сразу, до реванш-экрана. Лобби-предметы (компас/
-        #     звезда/книга/порох/изумруд) убираем у ВСЕХ безусловно — включая
-        #     зрителей без роли, которым give_X_kit ниже не вызовется и предмет
-        #     иначе провисел бы в инвентаре весь раунд. ---
+        # --- Выдаём наборы только участникам раунда. AFK остаются в лобби. ---
         loop all players:
-                set {_p} to loop-player
-                if {afk.%{_p}%} is not true:
-                    clear inventory of {_p}
-                    if {char.%{_p}%} is "denden":
+            set {_p} to loop-player
+            if {afk.%{_p}%} is not true:
+                clear inventory of {_p}
+                if {char.%{_p}%} is "denden":
                     give_denden_kit({_p})
                 else if {char.%{_p}%} is "necromancer":
                     give_necromancer_kit({_p})
@@ -431,7 +428,8 @@ command /startround <text>:
                     give_blind_kit({_p})
                 else if {char.%{_p}%} is "samurai":
                     give_samurai_kit({_p})
-                applyCharacterSkin({_p}, {char.%{_p}%})
+                if {char.%{_p}%} is set:
+                    applyCharacterSkin({_p}, {char.%{_p}%})
 
         # --- Подготовка в отдельных комнатах ожидания: 15 секунд + голограммы ---
         if {wait.maniac.spawn} is not set:
@@ -881,16 +879,18 @@ function stopRound(message: text):
         if {autoround.enabled} is true:
             if {round.active} is false:
                 broadcast "&c&lВНИМАНИЕ! &eДо начала нового раунда осталось &c30 секунд&e!"
-                wait 30 seconds
-                if {autoround.enabled} is true:
-                    if {round.active} is false:
-                        if {map.mode} is "vote":
-                            set {_votedMap} to startMapVote()
+                if {map.mode} is "vote":
+                    set {_votedMap} to startMapVote()
+                    if {autoround.enabled} is true:
+                        if {round.active} is false:
                             if {_votedMap} is not "":
                                 autoStartRound({_votedMap})
                             else:
                                 autoStartRound("random")
-                        else:
+                else:
+                    wait 30 seconds
+                    if {autoround.enabled} is true:
+                        if {round.active} is false:
                             autoStartRound("random")
 
 # =========================================================
