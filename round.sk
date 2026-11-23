@@ -389,6 +389,11 @@ command /startround <text>:
                             set {_sChar} to {char.survivorPref.%{_p}%}
                         set {char.%{_p}%} to {_sChar}
 
+        set {round.participantCount} to 0
+        loop all players:
+            if {char.%loop-player%} is set:
+                add 1 to {round.participantCount}
+
         # --- Выдаём наборы только участникам раунда. AFK остаются в лобби. ---
         loop all players:
             set {_p} to loop-player
@@ -550,7 +555,7 @@ command /startround <text>:
         # --- Авто-ЛМС для двух игроков.
         # Если единственный выживший — заряженный Илья, сначала даём ему
         # использовать возрождение. ЛМС начнётся после его возвращения.
-        if size of all players is 2:
+        if {round.participantCount} is 2:
             if {round.survivorsAlive} is 1:
                 set {_delayIlyaLms} to false
                 loop all players:
@@ -652,7 +657,7 @@ on respawn:
                 set {ilya.reviveUsed.%player%} to true
                 # В матче ровно на двух игроков ЛМС начинается только после
                 # завершения возрождения Ильи, а не до его смерти.
-                if size of all players is 2:
+                if {round.participantCount} is 2:
                     if {round.survivorsAlive} is 1:
                         startFinalDuel()
             else if isManiac({char.%player%}) is false:
@@ -799,6 +804,7 @@ function stopRound(message: text):
     delete {round.duelActive}
     delete {round.barCreated}
     delete {round.live}
+    delete {round.participantCount}
     execute console command "bossbar remove round:timer"
     execute console command "bossbar remove round:duel"
     execute console command "tag @a remove lms_duel"
