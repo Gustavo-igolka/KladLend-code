@@ -310,21 +310,23 @@ command /startround <text>:
         set {_maxAnger} to -1
         loop all players:
             set {_p} to loop-player
-            set {_hasPref} to false
-            if {char.maniacPref.%{_p}%} is set:
-                set {_hasPref} to true
-            else if {char.survivorPref.%{_p}%} is set:
-                set {_hasPref} to true
-            if {_hasPref} is true:
-                set {_a} to 0
-                if {anger.%{_p}%} is set:
-                    set {_a} to {anger.%{_p}%}
-                if {_a} > {_maxAnger}:
-                    set {_maxAnger} to {_a}
-                    set {_killer} to {_p}
-                else if {_a} = {_maxAnger}:
-                    if a random integer between 1 and 2 is 1:
-                        set {_killer} to {_p}
+            if {afk.%{_p}%} is not true:
+                if {killer.disabled.%{_p}%} is not true:
+                    set {_hasPref} to false
+                    if {char.maniacPref.%{_p}%} is set:
+                        set {_hasPref} to true
+                    else if {char.survivorPref.%{_p}%} is set:
+                        set {_hasPref} to true
+                    if {_hasPref} is true:
+                        set {_a} to 0
+                        if {anger.%{_p}%} is set:
+                            set {_a} to {anger.%{_p}%}
+                        if {_a} > {_maxAnger}:
+                            set {_maxAnger} to {_a}
+                            set {_killer} to {_p}
+                        else if {_a} = {_maxAnger}:
+                            if a random integer between 1 and 2 is 1:
+                                set {_killer} to {_p}
 
         if {_killer} is not set:
             broadcast "&cНикто не выбрал роль — сначала /choosemaniac или /choosesurvivor."
@@ -358,9 +360,10 @@ command /startround <text>:
             delete {project.dashStack.%loop-player%}
             delete {project.channeling.%loop-player%}
             delete {project.stunImmune.%loop-player%}
-            if {menu.music.sound} is set:
-                execute console command "/stopsound %loop-player% * %{menu.music.sound}%"
-            execute console command "/team join hide_names %loop-player%"
+            if {afk.%loop-player%} is not true:
+                if {menu.music.sound} is set:
+                    execute console command "/stopsound %loop-player% * %{menu.music.sound}%"
+                execute console command "/team join hide_names %loop-player%"
         execute console command "/gamerule naturalRegeneration false"
         resetAllGenerators()
         spawnMapItems({_map})
@@ -373,60 +376,62 @@ command /startround <text>:
 
         loop all players:
             set {_p} to loop-player
-            if {_p} is not {_killer}:
-                set {_hasPref2} to false
-                if {char.maniacPref.%{_p}%} is set:
-                    set {_hasPref2} to true
-                else if {char.survivorPref.%{_p}%} is set:
-                    set {_hasPref2} to true
-                if {_hasPref2} is true:
-                    set {_sChar} to "andrey"
-                    if {char.survivorPref.%{_p}%} is set:
-                        set {_sChar} to {char.survivorPref.%{_p}%}
-                    set {char.%{_p}%} to {_sChar}
+            if {afk.%{_p}%} is not true:
+                if {_p} is not {_killer}:
+                    set {_hasPref2} to false
+                    if {char.maniacPref.%{_p}%} is set:
+                        set {_hasPref2} to true
+                    else if {char.survivorPref.%{_p}%} is set:
+                        set {_hasPref2} to true
+                    if {_hasPref2} is true:
+                        set {_sChar} to "andrey"
+                        if {char.survivorPref.%{_p}%} is set:
+                            set {_sChar} to {char.survivorPref.%{_p}%}
+                        set {char.%{_p}%} to {_sChar}
 
         # --- Выдаём наборы всем сразу, до реванш-экрана. Лобби-предметы (компас/
         #     звезда/книга/порох/изумруд) убираем у ВСЕХ безусловно — включая
         #     зрителей без роли, которым give_X_kit ниже не вызовется и предмет
         #     иначе провисел бы в инвентаре весь раунд. ---
         loop all players:
-            set {_p} to loop-player
-            clear inventory of {_p}
-            if {char.%{_p}%} is "denden":
-                give_denden_kit({_p})
-            else if {char.%{_p}%} is "necromancer":
-                give_necromancer_kit({_p})
-            else if {char.%{_p}%} is "anomaly":
-                give_anomaly_kit({_p})
-            else if {char.%{_p}%} is "andrey":
-                give_andrey_kit({_p})
-            else if {char.%{_p}%} is "mihuilong":
-                give_mihuilong_kit({_p})
-            else if {char.%{_p}%} is "alexey":
-                give_alexey_kit({_p})
-            else if {char.%{_p}%} is "ilya":
-                give_ilya_kit({_p})
-            else if {char.%{_p}%} is "hacker":
-                give_hacker_kit({_p})
-            else if {char.%{_p}%} is "thomas":
-                give_thomas_kit({_p})
-            else if {char.%{_p}%} is "mayor":
-                give_mayor_kit({_p})
-            else if {char.%{_p}%} is "sanya":
-                give_sanya_kit({_p})
-            else if {char.%{_p}%} is "kirill":
-                give_kirill_kit({_p})
-            else if {char.%{_p}%} is "dartikil":
-                give_dartikil_kit({_p})
-            else if {char.%{_p}%} is "detective":
-                give_detective_kit({_p})
-            else if {char.%{_p}%} is "project":
-                give_project_kit({_p})
-            else if {char.%{_p}%} is "blind":
-                give_blind_kit({_p})
-            else if {char.%{_p}%} is "samurai":
-                give_samurai_kit({_p})
-            applyCharacterSkin({_p}, {char.%{_p}%})
+                set {_p} to loop-player
+                if {afk.%{_p}%} is not true:
+                    clear inventory of {_p}
+                    if {char.%{_p}%} is "denden":
+                    give_denden_kit({_p})
+                else if {char.%{_p}%} is "necromancer":
+                    give_necromancer_kit({_p})
+                else if {char.%{_p}%} is "anomaly":
+                    give_anomaly_kit({_p})
+                else if {char.%{_p}%} is "andrey":
+                    give_andrey_kit({_p})
+                else if {char.%{_p}%} is "mihuilong":
+                    give_mihuilong_kit({_p})
+                else if {char.%{_p}%} is "alexey":
+                    give_alexey_kit({_p})
+                else if {char.%{_p}%} is "ilya":
+                    give_ilya_kit({_p})
+                else if {char.%{_p}%} is "hacker":
+                    give_hacker_kit({_p})
+                else if {char.%{_p}%} is "thomas":
+                    give_thomas_kit({_p})
+                else if {char.%{_p}%} is "mayor":
+                    give_mayor_kit({_p})
+                else if {char.%{_p}%} is "sanya":
+                    give_sanya_kit({_p})
+                else if {char.%{_p}%} is "kirill":
+                    give_kirill_kit({_p})
+                else if {char.%{_p}%} is "dartikil":
+                    give_dartikil_kit({_p})
+                else if {char.%{_p}%} is "detective":
+                    give_detective_kit({_p})
+                else if {char.%{_p}%} is "project":
+                    give_project_kit({_p})
+                else if {char.%{_p}%} is "blind":
+                    give_blind_kit({_p})
+                else if {char.%{_p}%} is "samurai":
+                    give_samurai_kit({_p})
+                applyCharacterSkin({_p}, {char.%{_p}%})
 
         # --- Подготовка в отдельных комнатах ожидания: 15 секунд + голограммы ---
         if {wait.maniac.spawn} is not set:
@@ -879,7 +884,14 @@ function stopRound(message: text):
                 wait 30 seconds
                 if {autoround.enabled} is true:
                     if {round.active} is false:
-                        autoStartRound("random")
+                        if {map.mode} is "vote":
+                            set {_votedMap} to startMapVote()
+                            if {_votedMap} is not "":
+                                autoStartRound({_votedMap})
+                            else:
+                                autoStartRound("random")
+                        else:
+                            autoStartRound("random")
 
 # =========================================================
 # Выход игрока во время раунда
