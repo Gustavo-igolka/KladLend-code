@@ -126,8 +126,10 @@ function autoStartRound(mapArg: text):
 function startBattleRoyale(mapArgs: text):
     set {_map} to {_mapArgs}
     if {_map} is "random":
-        set {_i} to a random integer between 1 and size of {maps::*}
-        set {_map} to {maps::%{_i}%}
+        set {_map} to pickRandomMap()
+    if {_map} is "":
+        broadcast "&cНет доступных карт для Батл Рояля."
+        stop
 
     if size of {event.br_spawns::%{_map}%::*} is 0:
         broadcast "&cДля Батл Рояля на карте '%{_map}%' нет точек. Используй /seteventbatlmod %{_map}%"
@@ -137,7 +139,8 @@ function startBattleRoyale(mapArgs: text):
     # обработчике смерти) никогда не выполнится, и раунд повиснет навсегда
     set {_playerCount} to 0
     loop all players:
-        add 1 to {_playerCount}
+        if {afk.%loop-player%} is not true:
+            add 1 to {_playerCount}
     if {_playerCount} < 2:
         broadcast "&cДля Батл Рояля нужно минимум 2 игрока онлайн."
         stop
@@ -156,35 +159,37 @@ function startBattleRoyale(mapArgs: text):
     delete {round.maniac}
     delete {round.maniacName}
 
-    # Выдача наборов и спавн
+    # Выдача наборов и спавн — AFK-игроки остаются в лобби.
+    markMapPlayed({_map})
     loop all players:
-        execute console command "/team join hide_names %loop-player%"
-        if {menu.music.sound} is set:
-            execute console command "/stopsound %loop-player% * %{menu.music.sound}%"
+        if {afk.%loop-player%} is not true:
+            execute console command "/team join hide_names %loop-player%"
+            if {menu.music.sound} is set:
+                execute console command "/stopsound %loop-player% * %{menu.music.sound}%"
 
-        set {_charid} to "andrey"
-        if {char.survivorPref.%loop-player%} is set:
-            set {_charid} to {char.survivorPref.%loop-player%}
-        set {char.%loop-player%} to {_charid}
+            set {_charid} to "andrey"
+            if {char.survivorPref.%loop-player%} is set:
+                set {_charid} to {char.survivorPref.%loop-player%}
+            set {char.%loop-player%} to {_charid}
 
-        clear inventory of loop-player
-        set max health of loop-player to 10
-        wait 1 tick
-        set health of loop-player to 10
+            clear inventory of loop-player
+            set max health of loop-player to 10
+            wait 1 tick
+            set health of loop-player to 10
 
         # Выдаём выбранный кит (может ещё раз поменять max health под
         # конкретного персонажа — Илья/Томас/Маёр/Саня — это ожидаемо)
-        giveSurvivorKit(loop-player, {_charid})
-        applyCharacterSkin(loop-player, {_charid})
-        give wooden sword named "&cДеревянный меч (Батл Рояль)" to loop-player
+            giveSurvivorKit(loop-player, {_charid})
+            applyCharacterSkin(loop-player, {_charid})
+            give wooden sword named "&cДеревянный меч (Батл Рояль)" to loop-player
 
-        # Спавн на точках БР
-        set {_i} to a random integer between 1 and size of {event.br_spawns::%{_map}%::*}
-        teleport loop-player to {event.br_spawns::%{_map}%::%{_i}%}
+            # Спавн на точках БР
+            set {_i} to a random integer between 1 and size of {event.br_spawns::%{_map}%::*}
+            teleport loop-player to {event.br_spawns::%{_map}%::%{_i}%}
 
-        add 1 to {round.survivorsAlive}
-        set {alive.%loop-player%} to true
-        set gamemode of loop-player to adventure
+            add 1 to {round.survivorsAlive}
+            set {alive.%loop-player%} to true
+            set gamemode of loop-player to adventure
 
     execute console command "/gamerule naturalRegeneration false"
     broadcast "&4&lБАТЛ РОЯЛЬ НАЧАЛСЯ &7на карте &f%{_map}%"
