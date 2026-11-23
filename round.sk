@@ -329,7 +329,7 @@ command /startround <text>:
                                 set {_killer} to {_p}
 
         if {_killer} is not set:
-            broadcast "&cНикто не выбрал роль — сначала /choosemaniac или /choosesurvivor."
+            broadcast "&cНет доступного кандидата на убийцу. Проверьте предпочтения ролей и отключение /nokiller."
             stop
 
         # --- Назначаем персонажей ---
@@ -946,6 +946,8 @@ function playerLeftRound(p: player):
     if {char.%{_p}%} is not set:
         stop
     set {_char} to {char.%{_p}%}
+    if {round.participantCount} is set:
+        remove 1 from {round.participantCount}
     set {_wasAlive} to {alive.%{_p}%}
 
     # --- Убийца вышел: раунд заканчиваем ---
