@@ -39,6 +39,8 @@ command /afk:
 function startMapVote() :: text:
     delete {mapvote.options::*}
     delete {mapvote.votes::*}
+    loop all players:
+        delete {mapvote.vote.%loop-player%}
     add 1 to {mapvote.token}
     set {_token} to {mapvote.token}
 
@@ -111,8 +113,9 @@ function startMapVote() :: text:
     set {maps.last} to {_winner}
     broadcast "&aВыбрана карта: &f%{_winner}% &7(голосов: %{_maxVotes}%)."
     loop all players:
-        if name of player's current inventory is "&6Выбор карты":
-            close player's inventory
+        if name of loop-player's current inventory is "&6Выбор карты":
+            close loop-player's inventory
+        delete {mapvote.vote.%loop-player%}
     delete {mapvote.votes::*}
     return {_winner}
 
