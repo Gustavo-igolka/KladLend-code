@@ -1,0 +1,74 @@
+# Система мести мобов для Minecraft 1.21.x
+# Требуется: Paper 1.21.x + Skript 2.14+
+# Суть: за 10 убийств одного вида агрессивных мобов игрок получает отложенную месть.
+# Через заданное время рядом с ним появляются мобы того же вида и атакуют его.
+
+options:
+    kills-required: 10
+    revenge-delay: 2 minutes
+    revenge-mobs: 5
+    spawn-min-radius: 8
+    spawn-max-radius: 12
+    prefix: &4&l[Месть]&r
+
+# ---------- СОБЫТИЕ МЕСТИ ----------
+function startRevenge(p: player, mobType: entity type):
+    set {_id} to uuid of {_p}
+    set {_mob} to {_mobType}
+    wait {@revenge-delay}
+
+    # Ищем игрока по UUID: если он вышел, событие отменяется.
+    set {_target} to null
+    loop all players:
+        if uuid of loop-player is {_id}:
+            set {_target} to loop-player
+            stop loop
+
+    if {_target} is not set:
+        delete {revenge::pending::%{_id}%}
+        delete {revenge::pending-type::%{_id}%}
+        stop
+
+    send "{@prefix} &cТы истребил слишком много таких мобов. Теперь они идут за тобой!" to {_target}
+    play sound "entity.wither.spawn" with volume 0.7 and pitch 1.4 at {_target}
+
+    loop {@revenge-mobs} times:
+        set {_angle} to random integer between 0 and 359
+        set {_radius} to random integer between {@spawn-min-radius} and {@spawn-max-radius}
+        set {_x} to x-coordinate of {_target} + {_radius} * cos({_angle})
+        set {_z} to z-coordinate of {_target} + {_radius} * sin({_angle})
+        set {_check} to location({_x}, 100, {_z}, world of {_target})
+        set {_ground} to highest solid block at {_check}
+        set {_spawn} to location of block above {_ground}
+
+        # Не создаём мобов в жидкости или внутри непроходимого блока.
+        if block at {_spawn} is air:
+            spawn 1 of {_mob} at {_spawn}
+            set target of last spawned entity to {_target}
+
+    delete {revenge::pending::%{_id}%}
+    delete {revenge::pending-type::%{_id}%}
+
+# ---------- ПОДСЧЁТ УБИЙСТВ ----------
+on death:
+    if victim is a monster:
+        if attacker is a player:
+            set {_id} to uuid of attacker
+            set {_type} to type of victim
+
+            # У каждого игрока отдельный счётчик для каждого вида мобов.
+            add 1 to {revenge::kills::%{_id}%::%{_type}%}
+
+            if {revenge::kills::%{_id}%::%{_type}%} >= {@kills-required}:
+                # Пока одна месть уже ожидает запуска, новую не ставим в очередь.
+                if {revenge::pending::%{_id}%} is not set:
+                    set {revenge::pending::%{_id}%} to true
+                    set {revenge::pending-type::%{_id}%} to {_type}
+                    delete {revenge::kills::%{_id}%::%{_type}%}
+                    send "{@prefix} &7Ты убил 10 мобов одного вида. Кажется, кто-то это заметил..." to attacker
+                    startRevenge(attacker, {_type})
+
+# ---------- ОЧИСТКА ПРИ ПЕРЕЗАПУСКЕ ----------
+on script load:
+    delete {revenge::pending::*}
+    delete {revenge::pending-type::*}
