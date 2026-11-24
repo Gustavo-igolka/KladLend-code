@@ -71,7 +71,10 @@ function startMapVote():
             remove {_pool::%{_i}%} from {_pool::*}
 
     if size of {mapvote.options::*} is 0:
-        return ""
+        if {autoround.enabled} is true:
+            if {round.active} is false:
+                autoStartRound("random")
+        stop
 
     broadcast "&6&lГОЛОСОВАНИЕ ЗА КАРТУ! &eУ вас 30 секунд."
     loop all players:
