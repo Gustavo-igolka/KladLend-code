@@ -84,11 +84,11 @@ function startMapVote():
             loop {mapvote.options::*}:
                 add 1 to {_optionNumber}
                 if {_optionNumber} is 1:
-                    set slot 11 of {_inv} to map named "&e%loop-value-2%" with lore "&7Нажми, чтобы проголосовать"
+                    set slot 11 of {_inv} to map named "&e%{mapvote.options::%{_optionNumber}%}%" with lore "&7Нажми, чтобы проголосовать"
                 if {_optionNumber} is 2:
-                    set slot 13 of {_inv} to map named "&e%loop-value-2%" with lore "&7Нажми, чтобы проголосовать"
+                    set slot 13 of {_inv} to map named "&e%{mapvote.options::%{_optionNumber}%}%" with lore "&7Нажми, чтобы проголосовать"
                 if {_optionNumber} is 3:
-                    set slot 15 of {_inv} to map named "&e%loop-value-2%" with lore "&7Нажми, чтобы проголосовать"
+                    set slot 15 of {_inv} to map named "&e%{mapvote.options::%{_optionNumber}%}%" with lore "&7Нажми, чтобы проголосовать"
             open {_inv} to loop-player
 
     wait 30 seconds
