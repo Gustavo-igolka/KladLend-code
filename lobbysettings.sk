@@ -76,19 +76,20 @@ function startMapVote():
                 autoStartRound("random")
         stop
 
+    set {_option1} to {mapvote.options::1}
+    set {_option2} to {mapvote.options::2}
+    set {_option3} to {mapvote.options::3}
+
     broadcast "&6&lГОЛОСОВАНИЕ ЗА КАРТУ! &eУ вас 30 секунд."
     loop all players:
         if {afk.%loop-player%} is not true:
             set {_inv} to a new chest inventory with 3 rows named "&6Выбор карты"
-            set {_optionNumber} to 0
-            loop {mapvote.options::*}:
-                add 1 to {_optionNumber}
-                if {_optionNumber} is 1:
-                    set slot 11 of {_inv} to map named "&e%{mapvote.options::%{_optionNumber}%}%" with lore "&7Нажми, чтобы проголосовать"
-                if {_optionNumber} is 2:
-                    set slot 13 of {_inv} to map named "&e%{mapvote.options::%{_optionNumber}%}%" with lore "&7Нажми, чтобы проголосовать"
-                if {_optionNumber} is 3:
-                    set slot 15 of {_inv} to map named "&e%{mapvote.options::%{_optionNumber}%}%" with lore "&7Нажми, чтобы проголосовать"
+            if {_option1} is set:
+                set slot 11 of {_inv} to map named "&e%{_option1}%" with lore "&7Нажми, чтобы проголосовать"
+            if {_option2} is set:
+                set slot 13 of {_inv} to map named "&e%{_option2}%" with lore "&7Нажми, чтобы проголосовать"
+            if {_option3} is set:
+                set slot 15 of {_inv} to map named "&e%{_option3}%" with lore "&7Нажми, чтобы проголосовать"
             open {_inv} to loop-player
 
     wait 30 seconds
