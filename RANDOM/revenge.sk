@@ -18,7 +18,7 @@ function startRevenge(p: player, mobType: entity type):
     wait {@revenge-delay}
 
     # Ищем игрока по UUID: если он вышел, событие отменяется.
-    set {_target} to null
+    delete {_target}
     loop all players:
         if uuid of loop-player is {_id}:
             set {_target} to loop-player
@@ -60,11 +60,11 @@ on death:
             add 1 to {revenge::kills::%{_id}%::%{_type}%}
 
             if {revenge::kills::%{_id}%::%{_type}%} >= {@kills-required}:
+                delete {revenge::kills::%{_id}%::%{_type}%}
                 # Пока одна месть уже ожидает запуска, новую не ставим в очередь.
                 if {revenge::pending::%{_id}%} is not set:
                     set {revenge::pending::%{_id}%} to true
                     set {revenge::pending-type::%{_id}%} to {_type}
-                    delete {revenge::kills::%{_id}%::%{_type}%}
                     send "{@prefix} &7Ты убил 10 мобов одного вида. Кажется, кто-то это заметил..." to attacker
                     startRevenge(attacker, {_type})
 
