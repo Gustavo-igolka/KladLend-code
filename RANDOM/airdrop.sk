@@ -1,0 +1,120 @@
+#  AirDrop для Minecraft 1.20.1
+#  Требуется: Paper 1.21.x + Skript 2.14+
+#  Команды:  /airdrop here    - дроп на твоей позиции
+#            /airdrop random  - дроп в случайном месте
+#            /airdrop clear   - убрать активный дроп
+#  Право:    airdrop.admin
+
+options:
+    world: "world"
+    radius: 1000
+    interval: 30 minutes
+    min-players: 1
+    despawn: 5 minutes
+    prefix: &6&l[AirDrop]&r
+
+# ---------- ЛУТ ----------
+function airdropLoot(b: block):
+    clear inventory of {_b}
+    add 16 cooked beef to inventory of {_b}
+    add 8 golden apple to inventory of {_b}
+    if chance of 60%:
+        add random integer between 3 and 8 of iron ingot to inventory of {_b}
+    if chance of 40%:
+        add random integer between 1 and 4 of diamond to inventory of {_b}
+    if chance of 25%:
+        add 1 of netherite ingot to inventory of {_b}
+    if chance of 30%:
+        add 1 of enchanted golden apple to inventory of {_b}
+    if chance of 35%:
+        add 1 of diamond sword to inventory of {_b}
+    if chance of 35%:
+        add 1 of diamond chestplate to inventory of {_b}
+    if chance of 50%:
+        add 16 of arrow to inventory of {_b}
+    if chance of 20%:
+        add 1 of totem of undying to inventory of {_b}
+    if chance of 45%:
+        add 32 of oak planks to inventory of {_b}
+
+# ---------- СЛУЧАЙНАЯ ТОЧКА ----------
+function randomDropLocation() :: location:
+    set {_w} to world({@world})
+    loop 15 times:
+        set {_x} to a random integer between -{@radius} and {@radius}
+        set {_z} to a random integer between -{@radius} and {@radius}
+        set {_b} to highest solid block at location({_x}, 100, {_z}, {_w})
+        set {_up} to block above {_b}
+        if {_up} is air:
+            return location of {_up}
+    return location of block above (highest solid block at location(0, 100, 0, {_w}))
+
+# ---------- СТАРТ ДРОПА ----------
+function startAirdrop(l: location):
+    if {airdrop::loc} is set:
+        delete block at {airdrop::loc}
+        delete {airdrop::loc}
+    set {_x} to rounded x-coordinate of {_l}
+    set {_y} to rounded y-coordinate of {_l}
+    set {_z} to rounded z-coordinate of {_l}
+    broadcast "{@prefix} &eАирдроп сброшен! Координаты: &f%{_x}%, %{_y}%, %{_z}%"
+    broadcast "{@prefix} &7Он приземлится через несколько секунд..."
+    loop 40 times:
+        set {_p} to {_l}
+        add (60 - loop-number * 1.5) to y-coordinate of {_p}
+        draw 15 cloud particles at {_p}
+        draw 5 flame particles at {_p}
+        wait 3 ticks
+    set block at {_l} to chest
+    set {airdrop::loc} to {_l}
+    airdropLoot(block at {_l})
+    strike lightning effect at {_l}
+    play sound "entity.generic.explode" with volume 1 at {_l}
+    broadcast "{@prefix} &aАирдроп приземлился! Успей забрать лут: &f%{_x}%, %{_y}%, %{_z}%"
+    wait {@despawn}
+    if {airdrop::loc} is {_l}:
+        if block at {_l} is chest:
+            clear inventory of block at {_l}
+            set block at {_l} to air
+        delete {airdrop::loc}
+        broadcast "{@prefix} &cАирдроп исчез."
+
+# ---------- КОМАНДА ----------
+command /airdrop [<text>]:
+    permission: airdrop.admin
+    permission message: &cНет прав.
+    trigger:
+        if arg-1 is "here":
+            set {_pl} to location of player
+            set {_l} to location of block above (highest solid block at {_pl})
+            startAirdrop({_l})
+        else if arg-1 is "random":
+            startAirdrop(randomDropLocation())
+        else if arg-1 is "clear":
+            if {airdrop::loc} is set:
+                clear inventory of block at {airdrop::loc}
+                set block at {airdrop::loc} to air
+                delete {airdrop::loc}
+                send "{@prefix} &cАирдроп удалён." to player
+            else:
+                send "{@prefix} &7Активного дропа нет." to player
+        else:
+            send "{@prefix} &e/airdrop here | random | clear" to player
+
+# ---------- АВТО-ДРОП ----------
+every {@interval}:
+    if number of all players >= {@min-players}:
+        startAirdrop(randomDropLocation())
+
+# ---------- МАЯК ИЗ ЧАСТИЦ НАД ДРОПОМ ----------
+every 1 second:
+    if {airdrop::loc} is set:
+        loop 20 times:
+            set {_p} to {airdrop::loc}
+            add loop-number to y-coordinate of {_p}
+            draw 2 happy villager particles at {_p}
+
+# ---------- СООБЩЕНИЕ ОБ ОТКРЫТИИ ----------
+on right click on chest:
+    if location of event-block is {airdrop::loc}:
+        broadcast "{@prefix} &e%player% &7открыл аирдроп!"

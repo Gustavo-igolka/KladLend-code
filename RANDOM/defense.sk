@@ -1,0 +1,278 @@
+#  Оборона точки (миниигра) для Minecraft 1.20.1
+#  Требуется: Paper 1.21.x + Skript 2.14+
+#  Команды:  /defense here    - точка на твоей позиции
+#            /defense random  - точка в случайном месте
+#            /defense stop    - остановить игру
+#  Права:    defense.admin  - команды
+#            defense.bypass - можно строить рядом с точкой
+#
+#  Суть: в случайном месте появляется маяк. Нашествие начинается, когда игрок
+#  нажимает ПКМ на него. Мобы идут к маяку и ломают его. Нужно продержаться
+#  {@duration} секунд. Чем больше мобов убил игрок, тем лучше его награда.
+
+options:
+    world: "world"
+    radius: 1000
+    interval: 40 minutes
+    min-players: 1
+    duration: 120
+    activation: 300
+    zone: 12
+    point-hp: 100
+    prefix: &c&l[Оборона]&r
+
+# ---------- СЛУЧАЙНАЯ ТОЧКА ----------
+function randomDefenseLocation() :: location:
+    set {_w} to world({@world})
+    loop 15 times:
+        set {_x} to a random integer between -{@radius} and {@radius}
+        set {_z} to a random integer between -{@radius} and {@radius}
+        set {_b} to highest solid block at location({_x}, 100, {_z}, {_w})
+        set {_up} to block above {_b}
+        if {_up} is air:
+            return location of {_up}
+    return location of block above (highest solid block at location(0, 100, 0, {_w}))
+
+# ---------- ПОЯВЛЕНИЕ ТОЧКИ (ждёт нажатия) ----------
+function spawnDefensePoint(l: location):
+    if {def::active} is not set:
+        set {def::active} to true
+        delete {def::started}
+        set {def::loc} to {_l}
+        set {def::hp} to {@point-hp}
+        set block at {_l} to beacon
+        set {_x} to rounded x-coordinate of {_l}
+        set {_y} to rounded y-coordinate of {_l}
+        set {_z} to rounded z-coordinate of {_l}
+        broadcast "{@prefix} &eПоявилась точка обороны! Координаты: &f%{_x}%, %{_y}%, %{_z}%"
+        broadcast "{@prefix} &7Нажми &fПКМ &7на маяк, чтобы начать оборону. Нашествие начнётся сразу!"
+        set {_w} to 0
+        set {_go} to true
+        while {_go} is true:
+            add 1 to {_w}
+            loop 12 times:
+                set {_p} to {_l}
+                add 1.5 * cos(loop-number * 30) to x-coordinate of {_p}
+                add 1.5 * sin(loop-number * 30) to z-coordinate of {_p}
+                add 1 to y-coordinate of {_p}
+                draw 1 happy villager particle at {_p}
+            wait 1 second
+            if {def::active} is not set:
+                set {_go} to false
+            if {def::started} is set:
+                set {_go} to false
+            if {_w} >= {@activation}:
+                set {_go} to false
+        if {def::active} is set:
+            if {def::started} is not set:
+                set block at {_l} to air
+                delete {def::active}
+                delete {def::loc}
+                delete {def::hp}
+                broadcast "{@prefix} &7Никто не начал оборону, точка исчезла."
+
+# ---------- НАШЕСТВИЕ ----------
+function runDefense(l: location):
+    broadcast "{@prefix} &cНашествие началось! Держите точку &f{@duration} &cсекунд!"
+    delete {-def::kills::*}
+    delete {-def::in::*}
+    set {_t} to 0
+    while {def::active} is set:
+        add 1 to {_t}
+        # кольцо из частиц
+        loop 16 times:
+            set {_p} to {_l}
+            add {@zone} * cos(loop-number * 22.5) to x-coordinate of {_p}
+            add {@zone} * sin(loop-number * 22.5) to z-coordinate of {_p}
+            add 1 to y-coordinate of {_p}
+            draw 1 flame particle at {_p}
+        # волна мобов каждые 8 секунд, с каждой минутой сильнее
+        if mod({_t}, 8) is 1:
+            loop 3 + floor({_t} / 30) times:
+                set {_a} to random number between 0 and 360
+                set {_s} to location(x-coordinate of {_l} + 12 * cos({_a}), 100, z-coordinate of {_l} + 12 * sin({_a}), world of {_l})
+                set {_s} to location of block above (highest solid block at {_s})
+                if chance of 50%:
+                    spawn a zombie at {_s}
+                else:
+                    spawn a skeleton at {_s}
+                add last spawned entity to {-def::mobs::*}
+                # кнопка на голове защищает от горения на солнце
+                set helmet of last spawned entity to stone button
+        # мобы без цели идут к маяку
+        loop all zombies in radius 40 around {_l}:
+            if {-def::mobs::*} contains loop-entity:
+                if target of loop-entity is not set:
+                    set {_ml} to location of loop-entity
+                    set {_d} to distance between {_ml} and {_l}
+                    if {_d} > 2:
+                        set {_vx} to (x-coordinate of {_l} - x-coordinate of {_ml}) / {_d} * 0.4
+                        set {_vz} to (z-coordinate of {_l} - z-coordinate of {_ml}) / {_d} * 0.4
+                        set velocity of loop-entity to vector({_vx}, 0.2, {_vz})
+        loop all skeletons in radius 40 around {_l}:
+            if {-def::mobs::*} contains loop-entity:
+                if target of loop-entity is not set:
+                    set {_ml} to location of loop-entity
+                    set {_d} to distance between {_ml} and {_l}
+                    if {_d} > 2:
+                        set {_vx} to (x-coordinate of {_l} - x-coordinate of {_ml}) / {_d} * 0.4
+                        set {_vz} to (z-coordinate of {_l} - z-coordinate of {_ml}) / {_d} * 0.4
+                        set velocity of loop-entity to vector({_vx}, 0.2, {_vz})
+        # мобы рядом с маяком атакуют его
+        set {_n} to 0
+        loop all zombies in radius 3 around {_l}:
+            add 1 to {_n}
+        loop all skeletons in radius 3 around {_l}:
+            add 1 to {_n}
+        if {_n} > 0:
+            remove {_n} * 3 from {def::hp}
+            draw 5 crit particles at {_l}
+            play sound "entity.zombie.attack_wooden_door" with volume 1 at {_l}
+        # action bar только внутри круга
+        loop all players:
+            if world of loop-player is world of {_l}:
+                if distance between loop-player and {_l} <= {@zone}:
+                    set {_k} to {-def::kills::%loop-player%}
+                    if {_k} is not set:
+                        set {_k} to 0
+                    send action bar "&aДержись: &f%{@duration} - {_t}% сек &7| &cПрочность точки: &f%{def::hp}% &7| &eУбито: &f%{_k}%" to loop-player
+                    set {-def::in::%loop-player%} to true
+                else:
+                    if {-def::in::%loop-player%} is set:
+                        send action bar " " to loop-player
+                        delete {-def::in::%loop-player%}
+        wait 1 second
+        if {def::hp} <= 0:
+            set {_res} to "fail"
+            delete {def::active}
+        else if {_t} >= {@duration}:
+            set {_res} to "win"
+            delete {def::active}
+    # ---------- КОНЕЦ ----------
+    loop all players:
+        send action bar " " to loop-player
+    set {-def::cleanup} to true
+    kill {-def::mobs::*}
+    wait 1 tick
+    delete {-def::cleanup}
+    delete {-def::mobs::*}
+    delete {-def::in::*}
+    set block at {_l} to air
+    if {_res} is "win":
+        broadcast "{@prefix} &aТочка отстояна! Награда зависит от числа убитых мобов."
+        loop all players:
+            if world of loop-player is world of {_l}:
+                if distance between loop-player and {_l} < 30:
+                    set {_k} to {-def::kills::%loop-player%}
+                    if {_k} is not set:
+                        set {_k} to 0
+                    # обычная награда - всем
+                    give 16 cooked beef to loop-player
+                    # редкие вещи: чем больше убийств, тем выше шанс
+                    set {_cDia} to min(20 + {_k} * 5, 100)
+                    set {_cApple} to min(5 + {_k} * 4, 100)
+                    set {_cTotem} to min({_k} * 2, 50)
+                    set {_cNeth} to min({_k} * 2, 60)
+                    if chance of {_cDia}%:
+                        give (random integer between 1 and (1 + floor({_k} / 5))) of diamond to loop-player
+                    if chance of {_cApple}%:
+                        give 1 enchanted golden apple to loop-player
+                    if chance of {_cTotem}%:
+                        give 1 totem of undying to loop-player
+                    if chance of {_cNeth}%:
+                        give 1 netherite ingot to loop-player
+                    send "{@prefix} &aТы убил мобов: &f%{_k}%&a. Чем больше убийств, тем лучше награда!" to loop-player
+    else if {_res} is "fail":
+        broadcast "{@prefix} &cТочка разрушена! Мобы победили."
+    else:
+        broadcast "{@prefix} &7Оборона остановлена."
+    delete {-def::kills::*}
+    delete {def::loc}
+    delete {def::hp}
+    delete {def::started}
+
+# ---------- НАЖАТИЕ НА МАЯК ----------
+on right click on beacon:
+    if {def::loc} is set:
+        if location of event-block is {def::loc}:
+            cancel event
+            if {def::active} is set:
+                if {def::started} is not set:
+                    set {def::started} to true
+                    send "{@prefix} &eТы запустил нашествие!" to player
+                    runDefense({def::loc})
+
+# ---------- КОМАНДА ----------
+command /defense [<text>]:
+    permission: defense.admin
+    permission message: &cНет прав.
+    trigger:
+        if arg-1 is "here":
+            set {_pl} to location of player
+            set {_l} to location of block above (highest solid block at {_pl})
+            spawnDefensePoint({_l})
+        else if arg-1 is "random":
+            set {_l} to randomDefenseLocation()
+            spawnDefensePoint({_l})
+        else if arg-1 is "stop":
+            if {def::active} is set:
+                if {def::started} is set:
+                    delete {def::active}
+                else:
+                    set block at {def::loc} to air
+                    delete {def::active}
+                    delete {def::loc}
+                    delete {def::hp}
+                    broadcast "{@prefix} &7Оборона отменена."
+            else:
+                send "{@prefix} &7Активной обороны нет." to player
+        else:
+            send "{@prefix} &e/defense here | random | stop" to player
+
+# ---------- АВТОЗАПУСК ----------
+every {@interval}:
+    if {def::active} is not set:
+        if number of all players >= {@min-players}:
+            set {_l} to randomDefenseLocation()
+            spawnDefensePoint({_l})
+
+# ---------- ЗАЩИТА МАЯКА ОТ ЛОМАНИЯ ----------
+on break of beacon:
+    if {def::loc} is set:
+        if location of event-block is {def::loc}:
+            cancel event
+
+# ---------- НЕЛЬЗЯ СТРОИТЬ РЯДОМ С ТОЧКОЙ ----------
+on place:
+    if {def::loc} is set:
+        if world of event-block is world of {def::loc}:
+            if distance between (location of event-block) and {def::loc} <= {@zone}:
+                if player does not have permission "defense.bypass":
+                    cancel event
+                    send "{@prefix} &cРядом с точкой обороны строить нельзя!" to player
+
+on bucket empty:
+    if {def::loc} is set:
+        if world of player is world of {def::loc}:
+            if distance between (location of player) and {def::loc} <= {@zone}:
+                if player does not have permission "defense.bypass":
+                    cancel event
+                    send "{@prefix} &cРядом с точкой обороны нельзя лить жидкости!" to player
+
+# ---------- УБИЙСТВА И ОЧИСТКА МОБОВ ----------
+on death:
+    if {-def::cleanup} is set:
+        if victim is not a player:
+            clear drops
+    else:
+        if {def::started} is set:
+            if {-def::mobs::*} contains victim:
+                remove stone button from drops
+                if attacker is a player:
+                    add 1 to {-def::kills::%attacker%}
+
+# ---------- ЧИСТКА ПРИ ПЕРЕЗАПУСКЕ ----------
+on script load:
+    delete {def::active}
+    delete {def::started}
+    delete {-def::mobs::*}
