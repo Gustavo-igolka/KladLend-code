@@ -36,7 +36,7 @@ command /afk:
             close player's inventory
             send "&7AFK включён. Ты исключён из обычных раундов и Батл Рояля." to player
 
-function startMapVote() :: text:
+function startMapVote():
     delete {mapvote.options::*}
     delete {mapvote.votes::*}
     loop all players:
@@ -45,7 +45,10 @@ function startMapVote() :: text:
     set {_token} to {mapvote.token}
 
     if size of {maps::*} is 0:
-        return ""
+        if {autoround.enabled} is true:
+            if {round.active} is false:
+                autoStartRound("random")
+        stop
 
     delete {_pool::*}
     loop {maps::*}:
@@ -74,18 +77,20 @@ function startMapVote() :: text:
     loop all players:
         if {afk.%loop-player%} is not true:
             set {_inv} to a new chest inventory with 3 rows named "&6Выбор карты"
+            set {_optionNumber} to 0
             loop {mapvote.options::*}:
-                if loop-number is 1:
+                add 1 to {_optionNumber}
+                if {_optionNumber} is 1:
                     set slot 11 of {_inv} to map named "&e%loop-value%" with lore "&7Нажми, чтобы проголосовать"
-                else if loop-number is 2:
+                if {_optionNumber} is 2:
                     set slot 13 of {_inv} to map named "&e%loop-value%" with lore "&7Нажми, чтобы проголосовать"
-                else if loop-number is 3:
+                if {_optionNumber} is 3:
                     set slot 15 of {_inv} to map named "&e%loop-value%" with lore "&7Нажми, чтобы проголосовать"
             open {_inv} to loop-player
 
     wait 30 seconds
     if {mapvote.token} is not {_token}:
-        return ""
+        stop
 
     delete {_leaders::*}
     set {_maxVotes} to -1
@@ -117,7 +122,9 @@ function startMapVote() :: text:
             close loop-player's inventory
         delete {mapvote.vote.%loop-player%}
     delete {mapvote.votes::*}
-    return {_winner}
+    if {autoround.enabled} is true:
+        if {round.active} is false:
+            autoStartRound({_winner})
 
 on inventory click:
     if name of event-inventory is "&6Выбор карты":
