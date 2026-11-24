@@ -886,13 +886,7 @@ function stopRound(message: text):
             if {round.active} is false:
                 broadcast "&c&lВНИМАНИЕ! &eДо начала нового раунда осталось &c30 секунд&e!"
                 if {map.mode} is "vote":
-                    set {_votedMap} to startMapVote()
-                    if {autoround.enabled} is true:
-                        if {round.active} is false:
-                            if {_votedMap} is not "":
-                                autoStartRound({_votedMap})
-                            else:
-                                autoStartRound("random")
+                    startMapVote()
                 else:
                     wait 30 seconds
                     if {autoround.enabled} is true:
