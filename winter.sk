@@ -1,0 +1,68 @@
+# =========================================================
+# winter.sk — зимний ивент и модификатор «Метель»
+# Работает только в обычных раундах. Карты не проверяются.
+# =========================================================
+
+command /winterevent:
+    permission: op
+    trigger:
+        if {event.winter.active} is true:
+            set {event.winter.active} to false
+            broadcast "&b❄ Зимний ивент выключен. Уже начавшийся раунд не затронут."
+        else:
+            set {event.winter.active} to true
+            broadcast "&b❄ Зимний ивент включён! В обычных раундах может случайно начаться «Метель»."
+
+# Выбор выполняется один раз после фактического старта обычного раунда.
+# 1 из 2 — «Метель», 1 из 2 — раунд без модификатора.
+function selectRoundModifier():
+    delete {round.modifier}
+    if {event.winter.active} is true:
+        if random integer between 1 and 2 is 1:
+            set {round.modifier} to "blizzard"
+            broadcast "&b&l❄ МОДИФИКАТОР РАУНДА: МЕТЕЛЬ!"
+            broadcast "&7Снегопад ухудшает видимость, а поверхность становится скользкой."
+
+# Туман и снежные частицы. Эффект обновляется короткими интервалами,
+# поэтому после завершения раунда он не остаётся на игроках.
+every 2 seconds:
+    if {round.active} is true:
+        if {round.modifier} is "blizzard":
+            loop all players:
+                if {char.%loop-player%} is set:
+                    if gamemode of loop-player is not spectator:
+                        apply darkness 0 to loop-player for 3 seconds
+
+every 2 ticks:
+    if {round.active} is true:
+        if {round.modifier} is "blizzard":
+            loop all players:
+                if {char.%loop-player%} is set:
+                    if gamemode of loop-player is not spectator:
+                        execute console command "execute at %loop-player% run particle minecraft:snowflake ~ ~1 ~ 0.8 1 0.8 0.01 14 force"
+
+# Имитация скользкой поверхности: сохраняем немного больше горизонтального
+# импульса при движении по земле. Вертикальная скорость не меняется.
+on player move:
+    if {round.active} is true:
+        if {round.live} is true:
+            if {round.modifier} is "blizzard":
+                if {alive.%player%} is true:
+                    if player is on ground:
+                        if player is not sneaking:
+                            set {_velocity} to velocity of player
+                            set {_vx} to x component of {_velocity}
+                            set {_vz} to z component of {_velocity}
+                            multiply {_vx} by 1.08
+                            multiply {_vz} by 1.08
+                            if {_vx} > 0.32:
+                                set {_vx} to 0.32
+                            else if {_vx} < -0.32:
+                                set {_vx} to -0.32
+                            if {_vz} > 0.32:
+                                set {_vz} to 0.32
+                            else if {_vz} < -0.32:
+                                set {_vz} to -0.32
+                            set x component of {_velocity} to {_vx}
+                            set z component of {_velocity} to {_vz}
+                            set velocity of player to {_velocity}
