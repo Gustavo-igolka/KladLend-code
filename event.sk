@@ -35,6 +35,8 @@ command /eventplay:
 function isAnyEventActive() :: boolean:
     if {event.misha.active} is true:
         return true
+    if {event.winter.active} is true:
+        return true
     return false
 
 # 2. Установка точек для режима Батл Рояль
