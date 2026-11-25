@@ -2370,6 +2370,20 @@ function projectSlowWalk(p: player, speed: number, d: timespan):
         delete {project.freezeToken.%{_p}%}
         set walk speed of {_p} to 0.2
 
+# --- Баланс: walk speed 0 не блокирует прыжок (Space в воздухе даёт импульс),
+#     поэтому во время стана/заморозки сбрасываем горизонтальную скорость.
+#     Вертикаль не трогаем — падение с высоты работает как обычно. ---
+every 1 tick:
+    loop all players:
+        # Стан/заморозка (projectSlowWalk, Челюсти) — freezeToken + walk speed 0.
+        # Проверяем сразу у loop-player (без промежуточной переменной),
+        # т.к. Skript не принимает составное условие "if A is set or B is 0"
+        # и свойство "horizontal velocity".
+        if {project.freezeToken.%loop-player%} is set:
+            teleport loop-player to location of loop-player
+        else if walk speed of loop-player is 0:
+            teleport loop-player to location of loop-player
+
 # ===========================================================
 # Способность 1 — Челюсти (bone, КД 40 сек)
 #
