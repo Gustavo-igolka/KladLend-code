@@ -47,7 +47,7 @@ on player move:
     if {round.active} is true:
         if {round.live} is true:
             if {round.modifier} is "blizzard":
-                if {alive.%player%} is true:
+                if {alive.%player%} is true or player is {round.maniac}:
                     if player is on ground:
                         if player is not sneaking:
                             set {_velocity} to velocity of player
