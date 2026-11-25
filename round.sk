@@ -539,6 +539,7 @@ command /startround <text>:
         loop all players:
             delete {hacker.mark.%loop-player%}
         set {round.live} to true
+        selectRoundModifier()
         broadcast "&4&lРАУНД НАЧАЛСЯ &7на карте &f%{_map}%"
 
         # --- Режим "Время": таймер вместо фиксированного числа генераторов.
@@ -769,6 +770,7 @@ function startFinalDuel():
 function stopRound(message: text):
     clearWaitHolograms()
     set {round.active} to false
+    delete {round.modifier}
     delete {blind.trail::*}
     delete {round.maniac}
     delete {round.maniacName}
