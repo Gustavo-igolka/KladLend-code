@@ -155,7 +155,7 @@ every 1 second:
 #     Пока хоть один живой выживший в 15 блоках от убийцы — таймер растёт.
 #     15 сек непрерывной погони -> Speed I, 30 сек -> Speed II, 45 сек -> Speed III.
 #     Сбрасывается полностью, если все выжившие вышли за 15 блоков (см. resetBloodlust),
-#     либо мгновенно при успешном ударе М1 (см. abilities.sk). ---
+#     либо мгновенно при успешном ударе М1 (см. mechanics.sk). ---
 every 1 second:
     if {round.active} is true:
         if {round.maniac} is set:
@@ -179,7 +179,7 @@ every 1 second:
                 resetBloodlust({round.maniac})
 
 # --- СКОРОСТЬ УБИЙЦЫ (единственное место, где на убийцу ставится speed).
-#     Уровень считает maniacSpeedTier() в abilities.sk: вне погони Speed I,
+#     Уровень считает maniacSpeedTier() в mechanics.sk: вне погони Speed I,
 #     в погоне — только Bloodlust, плюс Сталк/временные бусты способностей.
 #     Эффект на 3 сек и обновляется каждую секунду — застрять "навсегда" он не может.
 #     dbgLive(): в тестовом режиме с манекенами скорость тоже работает без раунда. ---
@@ -241,7 +241,7 @@ every 1 second:
 
 # --- Предметы на карте: максимум 1 аптечка + 2 скорости за раунд, из точек
 #     /setitemspawn. Если точек нет — просто ничего не спавнится, это не критично.
-#     Убийца подобрать их не может (см. abilities.sk). ---
+#     Убийца подобрать их не может (см. mechanics.sk). ---
 function spawnMapItems(mapid: text):
     delete {mapItemEntities::*}
     if size of {map.%{_mapid}%.item.spawns::*} > 0:

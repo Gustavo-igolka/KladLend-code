@@ -238,7 +238,7 @@ function give_thomas_kit(p: player):
     set health of {_p} to 9
 
 # Маёр (Страж) — 11 сердец = 22 HP. Perry/Пинок/Удар — три раздельных предмета
-# без ванильной механики (paper, golden sword, iron sword), см. abilities.sk.
+# без ванильной механики (paper, golden sword, iron sword), см. characters/survivors/guards.sk.
 function give_mayor_kit(p: player):
     clear inventory of {_p}
     give paper named "&fПерри" to {_p}
@@ -253,7 +253,7 @@ function give_mayor_kit(p: player):
 
 # Саня (Поддержка) — 9 сердец. Турель (замедление в зоне) и Раздатчик (хил в
 # зоне) — заспавненные армор-стенды, ломаются с одного удара МАНЬЯКА (см.
-# abilities.sk: destroySanyaStructures + защита от survivor-урона).
+# characters/survivors/support.sk: destroySanyaStructures + защита от survivor-урона).
 function give_sanya_kit(p: player):
     clear inventory of {_p}
     give iron nugget named "&cТурель" to {_p}
@@ -263,7 +263,7 @@ function give_sanya_kit(p: player):
     set health of {_p} to 9
     destroySanyaStructures({_p})
 
-# Кирилл (Рашер) — обычные 10 сердец. Вор/Глич/Имплант, см. abilities.sk.
+# Кирилл (Рашер) — обычные 10 сердец. Вор/Глич/Имплант, см. characters/survivors/solo.sk.
 # Шкала ячеек стартует на 6/10, режим Глича по умолчанию "Бампер" и сразу заряжен.
 function give_kirill_kit(p: player):
     clear inventory of {_p}
@@ -278,7 +278,7 @@ function give_kirill_kit(p: player):
     delete {kirill.implantHealing.%{_p}%}
 
 # Dartikil (Страж) — хп на старте случайно 6–9 сердец. Монета/Пистолет/Знак/Шляпа и
-# пассивка «Заряды» — см. abilities.sk. Все счётчики сбрасываются при выдаче кита.
+# пассивка «Заряды» — см. characters/survivors/guards.sk. Все счётчики сбрасываются при выдаче кита.
 function give_dartikil_kit(p: player):
     clear inventory of {_p}
     give raw gold named "&6Монета" to {_p}
@@ -295,7 +295,7 @@ function give_dartikil_kit(p: player):
     set health of {_p} to {_hp}
 
 # The Project (Убийца) — обычные 10 сердец (урон по нему всё равно
-# заблокирован в abilities.sk). Челюсти/Хакер раш/Телепорт — см. abilities.sk.
+# заблокирован в characters/killers/project.sk). Челюсти/Хакер раш/Телепорт — см. characters/killers/project.sk.
 # Пассивка "вечное замедление 1" накладывается отдельно в round.sk при
 # телепорте на точку спавна убийцы (список сброса — там же).
 function give_project_kit(p: player):
