@@ -54,7 +54,7 @@ function dummyStatus(e: entity, tag: text, d: timespan):
     if {dummy.state.%{_e}%} is {_t}:
         set name of {_e} to {_base}
 
-# --- Спина/лицо: копия isBehind() из abilities.sk, но цель — сущность. ---
+# --- Спина/лицо: копия isBehind() из mechanics.sk, но цель — сущность. ---
 function dummyIsBehind(a: player, e: entity) :: boolean:
     set {_victimYaw} to yaw of location of {_e}
     set {_dirVec} to vector from location of {_e} to location of {_a}
@@ -142,7 +142,7 @@ command /debuginfect:
         send "&a[DEBUG] Заражено генераторов: %size of {project.infectedGens::*}%." to player
 
 # --- "Убийца-манекен" бьёт тебя: тест Перри Маёра (в игре Перри ловит удар
-#     каменного меча убийцы). Логика успеха — копия из abilities.sk. ---
+#     каменного меча убийцы). Логика успеха — копия из mechanics.sk. ---
 command /dummyhit:
     permission: op
     trigger:
