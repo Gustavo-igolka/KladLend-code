@@ -1,0 +1,408 @@
+# =========================================================
+# mechanics.sk — общие игровые механики
+# Кулдауны, модификаторы перезарядки, скорость убийц, защита ролей, станы и предметы на карте.
+# =========================================================
+
+# =========================================================
+# abilities.sk — способности персонажей и кулдауны
+# Единая система кулдаунов: остаток времени уменьшается центральным тикером,
+# а скорость восстановления может изменяться глобально или для отдельной способности.
+# Все сообщения ("send ... to player") — личные, их видит только сам игрок.
+# =========================================================
+
+# ---------------------------------------------------------
+# НАСТРОЙКИ ПРЕДМЕТОВ НА КАРТЕ (подбираются с земли)
+#   medkitTime     — сколько секунд идёт использование Аптечки
+#   speedItemTime  — то же для предмета "Скорость"
+#   useSlowLevel   — уровень замедления на время использования (5 ≈ -75% скорости,
+#                    6 ≈ -90%). Прервать использование можно: получив урон или
+#                    сменив предмет в руке — тогда эффект не даётся, предмет остаётся.
+#   necroBowRange  — дальность луча Магического лука Некромансика (блоков)
+#   anomalyBeamRange — дальность луча «Не ожидал?» Аномалии (блоков)
+#   thomasBeamRange  — дальность лучей Томаса (блоков)
+#   dartMaxSlow / dartBlastRadius / dartBlastDamage — Dartikil: потолок медлительности Монеты,
+#                      радиус (блоков) и урон (сердец) взрыва Пистолета
+# ---------------------------------------------------------
+options:
+    medkitTime: 4
+    speedItemTime: 2
+    useSlowLevel: 5
+    necroBowRange: 25
+    anomalyBeamRange: 15
+    thomasBeamRange: 25
+    kirillHitRadius: 2.4
+    projectRushHitRadius: 2.2
+    dartMaxSlow: 5
+    dartBlastRadius: 4
+    dartBlastDamage: 3
+
+# Возвращает текущую скорость восстановления конкретной способности.
+# Общие и персональные модификаторы перемножаются.
+function getCooldownRate(p: player, key: text) :: number:
+    set {_rate} to 1
+    loop {cd.modifierSources.%{_p}%::*}:
+        set {_source} to loop-value
+        if {cd.modifier.until.%{_p}%.%{_source}%.all} is set:
+            if {cd.modifier.until.%{_p}%.%{_source}%.all} > now:
+                set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.all}
+        if {_key} is not "all":
+            if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} is set:
+                if {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} > now:
+                    set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.%{_key}%}
+        # Специальный глобальный модификатор Детектива: ускоряет всё,
+        # кроме двух собственных способностей Детектива.
+        if {_key} is not "detective_research":
+            if {_key} is not "detective_golem":
+                if {cd.modifier.until.%{_p}%.%{_source}%.all_except_detective} is set:
+                    if {cd.modifier.until.%{_p}%.%{_source}%.all_except_detective} > now:
+                        set {_rate} to {_rate} * {cd.modifier.rate.%{_p}%.%{_source}%.all_except_detective}
+    return {_rate}
+
+# key = "all" — все способности; иначе — только способность с таким ID.
+# rate 1.5 ускоряет восстановление в 1.5 раза; rate 0.5 замедляет вдвое.
+# source — уникальный ID эффекта, независимые эффекты не перезаписывают друг друга.
+function setCooldownModifier(p: player, source: text, key: text, rate: number, secs: number):
+    # Сначала фиксируем прогресс по старой скорости, чтобы новый бафф
+    # не применялся задним числом к уже прошедшему времени.
+    loop {cd.keys.%{_p}%::*}:
+        updateCooldown({_p}, loop-value)
+    set {cd.modifier.rate.%{_p}%.%{_source}%.%{_key}%} to {_rate}
+    set {cd.modifier.until.%{_p}%.%{_source}%.%{_key}%} to now + ("%{_secs}% seconds" parsed as timespan)
+    if {_source} is not in {cd.modifierSources.%{_p}%::*}:
+        add {_source} to {cd.modifierSources.%{_p}%::*}
+    if {_key} is not in {cd.modifierKeys.%{_p}%.%{_source}%::*}:
+        add {_key} to {cd.modifierKeys.%{_p}%.%{_source}%::*}
+
+# Обновляет остаток по фактически прошедшему времени.
+# Повторный вызов в ту же секунду не ускоряет перезарядку:
+# учитывается только интервал с момента последнего обновления.
+function updateCooldown(p: player, key: text):
+    if {cd.remaining::%{_key}%.%{_p}%} is not set:
+        delete {cd.lastUpdate::%{_key}%.%{_p}%}
+        stop
+    if {cd.remaining::%{_key}%.%{_p}%} <= 0:
+        set {cd.remaining::%{_key}%.%{_p}%} to 0
+        delete {cd.lastUpdate::%{_key}%.%{_p}%}
+        stop
+    if {cd.lastUpdate::%{_key}%.%{_p}%} is not set:
+        set {cd.lastUpdate::%{_key}%.%{_p}%} to now
+        stop
+    set {_elapsed} to difference between now and {cd.lastUpdate::%{_key}%.%{_p}%}
+    set {_elapsedSeconds} to seconds of {_elapsed}
+    if {_elapsedSeconds} > 0:
+        set {_rate} to getCooldownRate({_p}, {_key})
+        set {_progress} to {_elapsedSeconds} * {_rate}
+        remove {_progress} from {cd.remaining::%{_key}%.%{_p}%}
+        if {cd.remaining::%{_key}%.%{_p}%} <= 0:
+            set {cd.remaining::%{_key}%.%{_p}%} to 0
+        # Не сдвигаем отметку при нулевом результате seconds of timespan:
+        # иначе частые вызовы будут каждый раз терять долю секунды.
+        set {cd.lastUpdate::%{_key}%.%{_p}%} to now
+
+function getCooldownRemaining(p: player, key: text) :: number:
+    updateCooldown({_p}, {_key})
+    if {cd.remaining::%{_key}%.%{_p}%} is set:
+        return {cd.remaining::%{_key}%.%{_p}%}
+    return 0
+
+function setCooldownRemaining(p: player, key: text, secs: number):
+    set {cd.remaining::%{_key}%.%{_p}%} to {_secs}
+    set {cd.lastUpdate::%{_key}%.%{_p}%} to now
+    if {_key} is not in {cd.keys.%{_p}%::*}:
+        add {_key} to {cd.keys.%{_p}%::*}
+
+function clearCooldown(p: player, key: text):
+    delete {cd.remaining::%{_key}%.%{_p}%}
+    delete {cd.lastUpdate::%{_key}%.%{_p}%}
+    remove {_key} from {cd.keys.%{_p}%::*}
+
+function tryCooldown(p: player, key: text, secs: number) :: boolean:
+    if getCooldownRemaining({_p}, {_key}) > 0:
+        send "&cЕщё не восстановилось, подожди немного." to {_p}
+        return false
+    setCooldownRemaining({_p}, {_key}, {_secs})
+    return true
+
+# Единый тикер: прогресс зависит от реального времени между обновлениями,
+# а не от количества запусков периодического события.
+every 1 second:
+    loop all players:
+        set {_p} to loop-player
+        loop {cd.keys.%{_p}%::*}:
+            set {_key} to loop-value-2
+            updateCooldown({_p}, {_key})
+        loop {cd.modifierSources.%{_p}%::*}:
+            set {_source} to loop-value-2
+            loop {cd.modifierKeys.%{_p}%.%{_source}%::*}:
+                set {_modifierKey} to loop-value-3
+                if {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%} is set:
+                    if {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%} <= now:
+                        delete {cd.modifier.until.%{_p}%.%{_source}%.%{_modifierKey}%}
+                        delete {cd.modifier.rate.%{_p}%.%{_source}%.%{_modifierKey}%}
+                        remove {_modifierKey} from {cd.modifierKeys.%{_p}%.%{_source}%::*}
+                        if size of {cd.modifierKeys.%{_p}%.%{_source}%::*} is 0:
+                            delete {cd.modifierKeys.%{_p}%.%{_source}%::*}
+                            remove {_source} from {cd.modifierSources.%{_p}%::*}
+
+# ---------------------------------------------------------
+# СКОРОСТЬ УБИЙЦ — единая система (раньше speed ставили сразу в нескольких
+# местах и они перезаписывали друг друга). Эффект speed на убийце ставит
+# ТОЛЬКО цикл "every 1 second" в round.sk, на 3 секунды, по уровню из
+# maniacSpeedTier(). Любая способность, дающая убийце ускорение, вызывает
+# maniacBoost(...) — а не apply speed напрямую.
+#   вне погони        -> Speed I (бесконечный базовый)
+#   в погоне          -> базы нет, только Bloodlust: 15 с = I, 30 с = II, 45 с = III
+#   Сталк Аномалии    -> Speed III
+#   maniacBoost(...)  -> временный минимум tier на secs секунд (берётся максимум)
+# ---------------------------------------------------------
+function maniacBoost(p: player, secs: number, tier: number):
+    set {maniac.boostUntil.%{_p}%} to now + ("%{_secs}% seconds" parsed as timespan)
+    set {maniac.boostTier.%{_p}%} to {_tier}
+
+function maniacSpeedTier(p: player) :: number:
+    set {_t} to 1
+    if {bloodlust.timer.%{_p}%} > 0:
+        set {_t} to 0
+        if {bloodlust.timer.%{_p}%} >= 45:
+            set {_t} to 3
+        else if {bloodlust.timer.%{_p}%} >= 30:
+            set {_t} to 2
+        else if {bloodlust.timer.%{_p}%} >= 15:
+            set {_t} to 1
+    if {anomaly.stalking.%{_p}%} is true:
+        if {_t} < 3:
+            set {_t} to 3
+    if {maniac.boostUntil.%{_p}%} is set:
+        if {maniac.boostUntil.%{_p}%} > now:
+            if {maniac.boostTier.%{_p}%} > {_t}:
+                set {_t} to {maniac.boostTier.%{_p}%}
+    return {_t}
+
+# --- Убийцу нельзя ранить или убить НИЧЕМ — только оглушить/замедлить/и т.д.
+on damage:
+    # Любое получение урона прерывает активную Стойкость Томаса до остальных обработчиков.
+    if victim is a player:
+        if {char.%victim%} is "thomas":
+            if {thomas.resistActive.%victim%} is true:
+                thomasEndResist(victim)
+                send "&cПолученный урон прервал Стойкость!" to victim
+    # --- Возрождение Ильи без смерти: перехватываем только смертельный урон ---
+    if victim is a player:
+        if {round.active} is true:
+            if {round.live} is true:
+                if {char.%victim%} is "ilya":
+                    if {ilya_charged.%victim%} is true:
+                        if {ilya.reviveUsed.%victim%} is not true:
+                            if {ilya.reviveProcessing.%victim%} is not true:
+                                if victim's health - damage <= 0:
+                                    cancel event
+                                    set {ilya.reviveProcessing.%victim%} to true
+                                    set {ilya.reviveUsed.%victim%} to true
+                                    set {ilya_charged.%victim%} to false
+                                    set {ilya_stunCount.%victim%} to 0
+                                    wait 1 tick
+                                    set {_mark} to {ilya.mark.%victim%}
+                                    if {_mark} is not set:
+                                        if size of {map.%{round.map}%.survivor.spawns::*} > 0:
+                                            set {_mark} to {map.%{round.map}%.survivor.spawns::1}
+                                    if {_mark} is set:
+                                        teleport victim to {_mark}
+                                    set gamemode of victim to adventure
+                                    set health of victim to 6
+                                    broadcast "&5&lИлья возродился на метке, но сильно ослаблен!"
+                                    addAnger(victim, 1)
+                                    awardXP(victim, "ilya", 30)
+                                    apply glowing to victim for 15 seconds
+                                    delete {ilya.reviveProcessing.%victim%}
+                                    stop
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if {round.active} is true:
+        if isManiac({char.%victim%}) is true:
+            cancel event
+        else if {andrey.invincible.%victim%} is true:
+            cancel event
+        else if attacker is an evoker fangs:
+            # --- Урон от Челюстей Проекта считается вручную (every 1 second
+            #     ниже, по {project.jawPoints::*}) — ванильный урон фангов отключаем. ---
+            cancel event
+        else if attacker is a player:
+            if victim is a player:
+                if isManiac({char.%attacker%}) is true:
+                    if attacker's tool is not stone sword:
+                        cancel event
+                else:
+                    cancel event
+
+# ---------------------------------------------------------
+# Функция "стана" — используется Михуилонгом при ударе мечом оглушения (см. ниже).
+# ---------------------------------------------------------
+function countAliveGuards() :: number:
+    set {_count} to 0
+    loop all players:
+        if {char.%loop-player%} is "mihuilong" or "ilya" or "mayor" or "dartikil":
+            if {alive.%loop-player%} is true:
+                add 1 to {_count}
+    return {_count}
+
+function stunPlayer(p: player, duration: timespan):
+    if {samurai.grabbing.%{_p}%} is true:
+        send "&5Захват защищает Самурая от оглушения!" to {_p}
+        stop
+    if {samurai.stunImmune.%{_p}%} is true:
+        send "&5Переключение защитило Самурая от оглушения!" to {_p}
+        stop
+    if {stunShield.%{_p}%} is true:
+        send "&5Щит поглотил оглушение!" to {_p}
+        stop
+    if {project.stunImmune.%{_p}%} is true:
+        send "&5Телепорт защитил Проект от оглушения!" to {_p}
+        stop
+    if {blocking.%{_p}%} is true:
+        send "&5Дыхание сработало! Оглушение отражено." to {_p}
+        maniacBoost({_p}, 5, 2)
+        stop
+    # Прерываем активный каст Проекта внешним оглушением.
+    if {project.channeling.%{_p}%} is true:
+        delete {project.channeling.%{_p}%}
+        send "&cДействие Проекта прервано оглушением!" to {_p}
+
+    set {stunned.%{_p}%} to true
+    apply weakness 10 to {_p} for {_duration}
+    send "&5Ты оглушён!" to {_p}
+
+    # Жёсткая заморозка скорости на весь срок стана.
+    # Дополнительно движение блокируется событием on player move ниже.
+    projectSlowWalk({_p}, 0, {_duration})
+    # Вложенная функция с wait выполняется отдельно, поэтому ждём здесь,
+    # чтобы флаг стана сохранялся до конца всей длительности оглушения.
+    wait {_duration}
+    delete {stunned.%{_p}%}
+    send "&5Оглушение прошло." to {_p}
+
+    set {_guards} to countAliveGuards()
+    set {_shieldSeconds} to 4 + ({_guards} * 2)
+    set {_shieldDuration} to {_shieldSeconds} * 1 second
+    set {stunShield.%{_p}%} to true
+    apply glowing to {_p} for {_shieldDuration}
+    broadcast "&b🛡 Убийца получил щит от станов на %{_shieldSeconds}% сек! (живых стражей: %{_guards}%)"
+    wait {_shieldDuration}
+    delete {stunShield.%{_p}%}
+    send "&b✔ Щит от станов спал." to {_p}
+
+# --- ЖЁСТКАЯ БЛОКИРОВКА СТАНА ---
+# walk speed = 0 сам по себе не запрещает все перемещения:
+# прыжок/инерция/отбрасывание могут продолжать сдвигать игрока.
+# PlayerMoveEvent отменяет любое обычное перемещение, пока активен стан.
+on player move:
+    if {stunned.%player%} is true:
+        cancel event
+
+function staggerPlayer(p: player, duration: timespan):
+    set {staggered.%{_p}%} to true
+    send "&eТы ошеломлён — способности временно недоступны!" to {_p}
+    wait {_duration}
+    delete {staggered.%{_p}%}
+    send "&a✔ Ошеломление прошло." to {_p}
+
+# ---------------------------------------------------------
+# ПРЕДМЕТЫ НА КАРТЕ
+# ---------------------------------------------------------
+
+on consume:
+    if name of event-item is "&aЗелье скорости" or "&eЗелье стойкости" or "&fЗелье невидимости" or "&aЗелье исцеления" or "&bСкорость (предмет)" or "&aАптечка (предмет)":
+        cancel event
+
+on pickup:
+    if {round.active} is true:
+        set {_isSpecialItem} to false
+        if event-item is golden apple named "&aАптечка (предмет)":
+            set {_isSpecialItem} to true
+        else if event-item is potion named "&bСкорость (предмет)":
+            set {_isSpecialItem} to true
+        if {_isSpecialItem} is true:
+            if isManiac({char.%player%}) is true:
+                cancel event
+
+on right click holding golden apple:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&aАптечка (предмет)":
+        # cancel — чтобы ваниль не начала есть яблоко сама (иначе съест и даст свои эффекты)
+        cancel event
+        if {char.%player%} is "kirill":
+            send "&cПассивка «Железо»: лечение извне на тебя не действует." to player
+            stop
+        if isManiac({char.%player%}) is false:
+            # защита от двойного срабатывания / повторного клика во время использования
+            if {mapitem.until.%player%} is set:
+                if {mapitem.until.%player%} > now:
+                    stop
+            set {_dur} to "{@medkitTime} seconds" parsed as timespan
+            set {mapitem.until.%player%} to now + {_dur}
+            set {_p} to player
+            set {_last} to health of {_p}
+            set {_ok} to true
+            send "&aИспользуешь Аптечку ({@medkitTime} сек)... не получай урон и не меняй предмет!" to {_p}
+            loop ({@medkitTime} * 10) times:
+                apply slowness {@useSlowLevel} to {_p} for 6 ticks
+                wait 2 ticks
+                if {_p} is not online:
+                    set {_ok} to false
+                    stop loop
+                if name of {_p}'s tool is not "&aАптечка (предмет)":
+                    set {_ok} to false
+                    stop loop
+                if health of {_p} < {_last}:
+                    set {_ok} to false
+                    stop loop
+                set {_last} to health of {_p}
+            delete {mapitem.until.%{_p}%}
+            if {_ok} is true:
+                heal {_p} by 6
+                remove 1 golden apple named "&aАптечка (предмет)" from {_p}
+                send "&aИспользована Аптечка! +6 сердец." to {_p}
+            else:
+                send "&cИспользование Аптечки прервано!" to {_p}
+
+on right click holding potion:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    cancel event
+    if name of player's tool is "&bСкорость (предмет)":
+        if isManiac({char.%player%}) is false:
+            if {mapitem.until.%player%} is set:
+                if {mapitem.until.%player%} > now:
+                    stop
+            set {_dur} to "{@speedItemTime} seconds" parsed as timespan
+            set {mapitem.until.%player%} to now + {_dur}
+            set {_p} to player
+            set {_last} to health of {_p}
+            set {_ok} to true
+            send "&bИспользуешь предмет Скорость ({@speedItemTime} сек)... не получай урон и не меняй предмет!" to {_p}
+            loop ({@speedItemTime} * 10) times:
+                apply slowness {@useSlowLevel} to {_p} for 6 ticks
+                wait 2 ticks
+                if {_p} is not online:
+                    set {_ok} to false
+                    stop loop
+                if name of {_p}'s tool is not "&bСкорость (предмет)":
+                    set {_ok} to false
+                    stop loop
+                if health of {_p} < {_last}:
+                    set {_ok} to false
+                    stop loop
+                set {_last} to health of {_p}
+            delete {mapitem.until.%{_p}%}
+            if {_ok} is true:
+                apply speed 1 to {_p} for 10 seconds
+                remove 1 potion named "&bСкорость (предмет)" from {_p}
+                send "&bИспользован предмет Скорость! Speed I на 10 сек." to {_p}
+            else:
+                send "&cИспользование предмета Скорость прервано!" to {_p}

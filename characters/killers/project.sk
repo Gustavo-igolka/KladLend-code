@@ -1,0 +1,389 @@
+# =========================================================
+# THE PROJECT (id: project) — убийца
+# Челюсти, Хакер раш, телепорт и связанные состояния.
+# =========================================================
+
+# THE PROJECT (маньяк)
+#
+# Общие заметки по реализации (согласовано с автором):
+#  - {project.channeling.%p%} — общий флаг "идёт channel". Ставится в начале
+#    Челюстей/Хакер раша/Телепорта и снимается либо по завершении, либо
+#    stunPlayer()-ом при внешнем стане (см. правку stunPlayer выше) — так
+#    все три способности одинаково прерываются оглушением на этапе каста.
+#  - Стак рывка ({project.dashStack.%survivor%}) — общий для Хакер раша,
+#    Телепорта (успех навешивает всем) и Заражения (исцеление навешивает
+#    вылечившему) — единая функция projectSetDashStack().
+#  - Числа хитбоксов/скорости рывка — ориентир (аналог рывка Кирилла),
+#    точную дистанцию/радиус нужно будет подстроить по тестам на сервере.
+# ---------------------------------------------------------
+
+# --- Стак рывка: 10 сек, подсвечивает выжившего (glowing) на то же время.
+#     Токен нужен, чтобы повторная простановка стака не давала старому
+#     таймеру погасить свежий стак раньше времени. ---
+function projectSetDashStack(target: player):
+    set {project.dashStack.%{_target}%} to true
+    apply glowing to {_target} for 10 seconds
+    set {project.dashStackToken.%{_target}%} to now
+    set {_myToken} to {project.dashStackToken.%{_target}%}
+    wait 10 seconds
+    if {project.dashStackToken.%{_target}%} is {_myToken}:
+        set {project.dashStack.%{_target}%} to false
+
+# --- Замедление/заморозка игрока (Проект, стан любого игрока) через walk speed (а не эффект зелья): эффекты
+#     пересекались с вечным slowness 1 и могли не сниматься. Токен защищает
+#     от гонки (последний вызов выигрывает), по окончании скорость = 0.2.
+#     speed 0 = стоит на месте. БЛОКИРУЕТ вызывающий триггер на время d. ---
+function projectSlowWalk(p: player, speed: number, d: timespan):
+    set {project.freezeToken.%{_p}%} to now
+    set {_t} to {project.freezeToken.%{_p}%}
+    set walk speed of {_p} to {_speed}
+    wait {_d}
+    if {project.freezeToken.%{_p}%} is {_t}:
+        delete {project.freezeToken.%{_p}%}
+        set walk speed of {_p} to 0.2
+
+# ===========================================================
+# Способность 1 — Челюсти (bone, КД 40 сек)
+#
+# Убийца полностью стоит все 7 секунд каста. Раз в ~9 тиков (7 сек / 15 ≈
+# 0.47 сек, округлено) вылетает одна из 15 "челюстей" (визуал —
+# evoker fangs): каждая новая появляется на расстоянии, равном своему
+# номеру (1..15 блоков) от убийцы, строго по ГОРИЗОНТАЛЬНОМУ направлению
+# взгляда В МОМЕНТ СВОЕГО спавна (pitch игнорируется, Y всегда = Y убийцы,
+# уже вылетевшие челюсти направление не меняют). Если на пути в эту сторону
+# стоит непроходимый блок (подъём рельефа) — дальнейшие челюсти в этом
+# каста не появляются. Каждая челюсть "живёт" 14 секунд как зона поражения
+# (see "every 1 second" ниже) — но на весь каст засчитывается только ОДИН
+# удар суммарно по всем 15 челюстям и всем 14 сек их жизни.
+# ===========================================================
+function projectPerformJaws(p: player):
+    set {project.channeling.%{_p}%} to true
+    set {project.jawHitDone} to false
+    loop 15 times:
+        if {project.channeling.%{_p}%} is not true:
+            stop loop
+        if {char.%{_p}%} is not "project":
+            stop loop
+        set {_i} to loop-number
+        set {_base} to location of {_p}
+        set {_yaw} to yaw of {_base}
+        set {_dx} to sin({_yaw}) * -1
+        set {_dz} to cos({_yaw})
+        set {_target} to location((x-coord of {_base}) + ({_dx} * {_i}), y-coord of {_base}, (z-coord of {_base}) + ({_dz} * {_i}), {_base}'s world)
+        if block at {_target} is not passable:
+            stop loop
+        spawn an evoker fangs at {_target}
+        add {_target} to {project.jawPoints::*}
+        set {project.jawBorn.%{_target}%} to now
+        wait 9 ticks
+    delete {project.channeling.%{_p}%}
+
+on right click holding bone:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&4Челюсти":
+        if {char.%player%} is "project":
+            cancel event
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            # --- Досрочная остановка каста повторным ПКМ: движение возвращается сразу,
+            #     новые челюсти не появляются, КД не сокращается. Первую секунду каста
+            #     повторный клик игнорируется (защита от случайного двойного клика). ---
+            if {project.jawsActive.%player%} is true:
+                if {project.channeling.%player%} is true:
+                    if difference between {project.jawStart.%player%} and now > 1 second:
+                        delete {project.channeling.%player%}
+                        delete {project.freezeToken.%player%}
+                        delete {project.jawsActive.%player%}
+                        set walk speed of player to 0.2
+                        send "&4Челюсти остановлены досрочно." to player
+                    stop
+            if tryCooldown(player, "project_jaws", 40) is true:
+                send "&4&lЧелюсти!" to player
+                # --- Заморозка через walk speed (а не slowness 250): эффект зелья
+                #     пересекался с вечным slowness 1 и мог не сниматься. Токен
+                #     защищает от гонки, а скорость возвращается явно. ---
+                set {project.freezeToken.%player%} to now
+                set {_token} to {project.freezeToken.%player%}
+                set {_start} to now
+                set {project.jawStart.%player%} to now
+                set {project.jawsActive.%player%} to true
+                set walk speed of player to 0
+                projectPerformJaws(player)
+                set {_left} to 7 seconds - (difference between {_start} and now)
+                if {_left} > 0 seconds:
+                    wait {_left}
+                delete {project.jawsActive.%player%}
+                if {project.freezeToken.%player%} is {_token}:
+                    delete {project.freezeToken.%player%}
+                    set walk speed of player to 0.2
+                wait 33 seconds
+                send "&a✔ Челюсти снова готовы!" to player
+
+# --- Страховка: если Проект не в заморозке Челюстей, а скорость не 0.2 —
+#     возвращаем. Лечит зависание, даже если что-то пошло не так. ---
+every 1 second:
+    loop all players:
+        if {char.%loop-player%} is set:
+            if {project.freezeToken.%loop-player%} is not set:
+                if walk speed of loop-player is not 0.2:
+                    set walk speed of loop-player to 0.2
+
+# --- Проверка попаданий по точкам-челюстям: каждую точку проверяем раз в
+#     секунду в течение 14 сек её жизни; как только КТО-ТО из выживших в
+#     ней окажется — засчитывается ЕДИНСТВЕННЫЙ удар на весь текущий каст
+#     (флаг {project.jawHitDone}), дальнейшие точки перестают наносить урон
+#     до следующего каста Челюстей. ---
+every 1 second:
+    if {round.active} is true:
+        loop {project.jawPoints::*}:
+            set {_loc} to loop-value
+            if {project.jawBorn.%{_loc}%} is not set:
+                remove {_loc} from {project.jawPoints::*}
+            else if difference between {project.jawBorn.%{_loc}%} and now > 14 seconds:
+                delete {project.jawBorn.%{_loc}%}
+                remove {_loc} from {project.jawPoints::*}
+            else if {project.jawHitDone} is not true:
+                loop all players:
+                    set {_s} to loop-player
+                    if isManiac({char.%{_s}%}) is false:
+                        if {alive.%{_s}%} is true:
+                            if {_s} is within 1.3 blocks of {_loc}:
+                                damage {_s} by 3
+                                set {project.jawHitDone} to true
+                                send "&4&lЧелюсти сомкнулись на тебе!" to {_s}
+
+# ===========================================================
+# Способность 2 — Хакер раш (feather, КД 50 сек)
+#
+# Замирание на 1,5 сек, затем неуправляемый рывок вперёд (направление
+# фиксируется в момент старта рывка, не стойки) на ~10 блоков. Промах —
+# откат идёт полные 50 сек. Попадание по выжившему БЕЗ стака — стак
+# ставится, откат ускоряется до 2 сек. Попадание по выжившему СО стаком —
+# 3 сердца урона, стак снимается, откат становится обычным (50 сек), сам
+# Проект получает замедление 3 на 4 сек. У разных выживших стак считается
+# отдельно — рывки можно "стакать", проходясь по разным целям подряд.
+# ===========================================================
+function projectRushOnHit(p: player, s: player):
+    if {project.dashStack.%{_s}%} is true:
+        damage {_s} by 3
+        set {project.dashStack.%{_s}%} to false
+        setCooldownRemaining({_p}, "project_rush", 50)
+        send "&4&lСтак пробит! Откат обычный (50 сек)." to {_p}
+        projectSlowWalk({_p}, 0.11, 4 seconds)
+    else:
+        projectSetDashStack({_s})
+        setCooldownRemaining({_p}, "project_rush", 2)
+        send "&4Рывок зацепил выжившего! Стак поставлен, откат ускорен (2 сек)." to {_p}
+
+function projectPerformRush(p: player):
+    set {project.rushHit.%{_p}%} to false
+    push {_p} in direction of {_p} at speed 2.6
+    loop 10 times:
+        wait 1 tick
+        if {char.%{_p}%} is not "project":
+            stop loop
+        if {project.rushHit.%{_p}%} is true:
+            stop loop
+        loop all players:
+            set {_s} to loop-player
+            if {_s} is not {_p}:
+                if isManiac({char.%{_s}%}) is false:
+                    if {alive.%{_s}%} is true:
+                        if distance between {_p} and {_s} <= {@projectRushHitRadius}:
+                            set {project.rushHit.%{_p}%} to true
+                            projectRushOnHit({_p}, {_s})
+        if {project.rushHit.%{_p}%} is not true:
+            set {_dm} to dummyNearest(location of {_p}, "survivor", {@projectRushHitRadius})
+            if {_dm} is set:
+                set {project.rushHit.%{_p}%} to true
+                dummyRushOnHit({_p}, {_dm})
+
+on right click holding feather:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&4Хакер раш":
+        if {char.%player%} is "project":
+            cancel event
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if tryCooldown(player, "project_rush", 50) is false:
+                stop
+            set {project.channeling.%player%} to true
+            send "&eПодготовка рывка..." to player
+            projectSlowWalk(player, 0, 1.5 seconds)
+            if {project.channeling.%player%} is true:
+                delete {project.channeling.%player%}
+                send "&4&lХакер раш!" to player
+                projectPerformRush(player)
+            else:
+                send "&cРывок сорван оглушением!" to player
+
+# ===========================================================
+# Способность 3 — Телепорт к заражённому генератору (recovery compass, КД 80 сек)
+#
+# По ПКМ сразу открывается GUI с текущими заражёнными генераторами (если
+# заражённых нет — способность недоступна). Выход из GUI без выбора —
+# способность НЕ использована и не расходуется. Клик по иконке — старт
+# 4-секундного каста (полная остановка + ошеломление), кулдаун начинает
+# идти именно с этого момента. Если во время каста Проект оглушён —
+# телепорт отменяется, но 80 сек кулдауна всё равно тратятся (см.
+# правку stunPlayer выше — {project.channeling} сбрасывается извне).
+# После успешного телепорта: 3 сек неуязвимость к станам + 3 сек
+# ошеломление (свои способности недоступны), и стак рывка ставится СРАЗУ
+# ВСЕМ живым выжившим.
+# ===========================================================
+function projectPerformTeleport(p: player, target: location):
+    set {project.channeling.%{_p}%} to true
+    set {staggered.%{_p}%} to true
+    send "&eТелепорт заряжается... не дай себя оглушить!" to {_p}
+    projectSlowWalk({_p}, 0, 4 seconds)
+    delete {staggered.%{_p}%}
+    if {project.channeling.%{_p}%} is true:
+        delete {project.channeling.%{_p}%}
+        set {_dest} to location((x-coord of {_target}) + 0.5, (y-coord of {_target}) + 1, (z-coord of {_target}) + 0.5, {_target}'s world)
+        teleport {_p} to {_dest}
+        send "&4&lТелепорт выполнен!" to {_p}
+        set {project.stunImmune.%{_p}%} to true
+        set {staggered.%{_p}%} to true
+        send "&eНеуязвим к станам на 3 сек — способности пока недоступны." to {_p}
+        wait 3 seconds
+        delete {project.stunImmune.%{_p}%}
+        delete {staggered.%{_p}%}
+        send "&a✔ Эффекты телепорта закончились." to {_p}
+        loop all players:
+            set {_s} to loop-player
+            if isManiac({char.%{_s}%}) is false:
+                if {alive.%{_s}%} is true:
+                    projectSetDashStack({_s})
+    else:
+        send "&cТелепорт сорван оглушением!" to {_p}
+
+on right click holding recovery compass:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&4Телепорт к генератору":
+        if {char.%player%} is "project":
+            cancel event
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if size of {project.infectedGens::*} is 0:
+                send "&7Нет заражённых генераторов для телепорта." to player
+                stop
+            set {_ready} to true
+            if getCooldownRemaining(player, "project_teleport") > 0:
+                set {_ready} to false
+            if {_ready} is false:
+                send "&cЕщё не восстановилось, подожди немного." to player
+                stop
+            set {_inv} to a new chest inventory with 1 row named "&4Заражённые генераторы"
+            set {_slot} to 0
+            delete {project.teleLocs.%player%::*}
+            loop {project.infectedGens::*}:
+                set {_loc} to loop-value
+                set {_prog} to 0
+                if {gen.progress.%{_loc}%} is set:
+                    set {_prog} to {gen.progress.%{_loc}%}
+                set {_n} to {_slot} + 1
+                set {_it} to anvil named "&4Генератор №%{_n}% (%{_prog}%%%)"
+                set slot {_slot} of {_inv} to {_it}
+                # --- ФИКС: локацию ищем по ИМЕНИ предмета. Раньше ключ строился из
+                #     %clicked slot% (объект слота, а не число), не совпадал с ключом
+                #     записи, локация не находилась — и телепорт молча не срабатывал. ---
+                set {project.teleLocs.%player%::%name of {_it}%} to {_loc}
+                add 1 to {_slot}
+            set {project.teleGUI.%player%} to true
+            open {_inv} to player
+
+on inventory click:
+    if {project.teleGUI.%player%} is true:
+        cancel event
+        if event-item is anvil:
+            set {_loc} to {project.teleLocs.%player%::%name of event-item%}
+            close player's inventory
+            delete {project.teleGUI.%player%}
+            if {_loc} is set:
+                if tryCooldown(player, "project_teleport", 80) is true:
+                    projectPerformTeleport(player, {_loc})
+
+# --- Выход из меню без выбора сбрасывает флаг (способность не тратится) ---
+on inventory close:
+    if {project.teleGUI.%player%} is true:
+        delete {project.teleGUI.%player%}
+# ===========================================================
+# ЧЕКЛИСТ: что нужно сделать, чтобы добавить нового персонажа
+# (на основе того, как уже подключены denden/necromancer/anomaly/project и т.д.)
+# ===========================================================
+# 1. characters.sk
+#    - getCharDisplayName(charid) — добавить ветку с именем персонажа
+#    - give_<charid>_kit(p) функция — стартовый инвентарь/оружие
+#    - если это убийца — добавить его в GUI выбора маньяка (choose.role),
+#      слот в чест-инвентаре и char.maniacPref
+#    - round-reset блок (переменные вида {<charid>.*}, если способность
+#      их использует) — обнулять в начале раунда
+#
+# 2. abilities.sk (этот файл)
+#    - функция(и) вида projectPerform...() с логикой способности(ей)
+#    - "on right click holding <item>" / другой триггер активации,
+#      с проверками {char.%player%}, {stunned.%...%}, {staggered.%...%}
+#    - кулдауны через tryCooldown(...)
+#
+# 3. skins.sk
+#    - getCharIcon(charid) — иконка (item type) персонажа для GUI
+#    - строка в openSkinCharSelect(...) (слот + иконка + имя)
+#    - строка в charidForSlot(slot) — обратное сопоставление слот → charid
+#    - если есть кастомный скин через SkinsRestorer — добавить
+#      применение/сброс скина на старте/конце раунда
+#
+# 4. levels.sk
+#    - строка в GUI "Твои уровни" (слот, иконка, имя, getCharLevel(player, charid))
+#    - функция начисления XP уже общая (awardXP), но нужно убедиться,
+#      что вызовы awardXP(..., "<charid>", ...) добавлены в нужных местах
+#      (round.sk / generators.sk / abilities.sk)
+#
+# 5. round.sk
+#    - isManiac(charid) — если новый персонаж это убийца, вернуть true
+#    - блок выдачи кита в начале раунда (if {char.%{_p}%} is "<charid>": give_..._kit(...))
+#    - если у персонажа есть пассивка/эффект на старте раунда (как jump boost
+#      у denden) — добавить ветку в блок назначения маньяка
+#    - при желании: спец-взаимодействия маньяк↔выживший (see "denden" + "mihuilong"
+#      пример с "King of TNT") — не обязательно, только для флейвора
+#
+# 6. debug.sk
+#    - ветка в admin-команде выдачи кита для соло-тестов (give_<charid>_kit)
+#
+# 7. lockers.sk / lobbyitems.sk / setup.sk
+#    - проверить, нет ли там общих списков персонажей/иконок, которые тоже
+#      нужно расширить (на момент проверки прямых упоминаний конкретных
+#      charid в этих трёх файлах не найдено — но стоит перепроверить вручную,
+#      если персонаж должен быть виден в лобби/шкафчиках)
+#
+# 8. event.sk
+#    - если персонаж должен участвовать в ивентах (Battle Royale/LMS) —
+#      проверить, не завязана ли логика ивента на конкретный список charid
+#
+# Итого минимальный набор для "просто нового персонажа без уникальных фич":
+# characters.sk (имя+кит) → skins.sk (иконка+скин) → levels.sk (строка в GUI)
+# → round.sk (выдача кита, isManiac при необходимости) → debug.sk (тест-кит).
+# abilities.sk нужен только если у персонажа есть активная способность.
+
+
+# =========================================================

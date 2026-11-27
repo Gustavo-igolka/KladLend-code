@@ -1,0 +1,384 @@
+# =========================================================
+# ВЫЖИВШИЕ — КЛАСС «ОДИНОЧКИ»
+# Андрей, Рататуй и Кирилл.
+# =========================================================
+
+# АНДРЕЙ (выживший)
+# ---------------------------------------------------------
+
+on right click holding potion:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    cancel event
+    if name of player's tool is "&aЗелье скорости":
+        if {char.%player%} is "andrey":
+            if tryCooldown(player, "andrey_speed", 50) is true:
+                remove slowness from player
+                apply speed 1 to player for 10 seconds
+                send "&aИспользовано: Зелье скорости" to player
+                addAnger(player, 0.5)
+                awardXP(player, "andrey", 15)
+                wait 50 seconds
+                send "&a✔ Зелье скорости снова готово!" to player
+
+on right click holding potion:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    cancel event
+    if name of player's tool is "&eЗелье стойкости":
+        if {char.%player%} is "andrey":
+            if tryCooldown(player, "andrey_resist", 50) is true:
+                set {andrey.invincible.%player%} to true
+                apply slowness 5 to player for 10 seconds
+                send "&eИспользовано: Зелье стойкости — полная неуязвимость на 10 сек!" to player
+                addAnger(player, 0.5)
+                awardXP(player, "andrey", 15)
+                wait 10 seconds
+                delete {andrey.invincible.%player%}
+                wait 40 seconds
+                send "&a✔ Зелье стойкости снова готово!" to player
+
+on right click holding potion:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    cancel event
+    if name of player's tool is "&fЗелье невидимости":
+        if {char.%player%} is "andrey":
+            if tryCooldown(player, "andrey_invis", 40) is true:
+                apply invisibility to player for 10 seconds
+                send "&fИспользовано: Зелье невидимости" to player
+                addAnger(player, 0.5)
+                awardXP(player, "andrey", 15)
+                wait 40 seconds
+                send "&a✔ Зелье невидимости снова готово!" to player
+
+# ---------------------------------------------------------
+# РАТАТУЙ — выживший
+# ---------------------------------------------------------
+on right click holding clock:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&bМетка телепорта":
+        if {char.%player%} is "hacker":
+            if tryCooldown(player, "hacker_mark", 1) is true:
+                set {hacker.mark.%player%} to location of player
+                send "&bМетка телепорта поставлена." to player
+
+on right click holding chorus fruit:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&bТелепорт":
+        if {char.%player%} is "hacker":
+            cancel event
+            if tryCooldown(player, "hacker_teleport", 70) is true:
+                if {hacker.mark.%player%} is not set:
+                    send "&cСначала поставь метку телепорта." to player
+                    stop
+                set {hacker.teleporting.%player%} to true
+                apply slowness 3 to player for 6 seconds
+                send "&bТелепортация начата... не получай урон!" to player
+                wait 6 seconds
+                if {hacker.teleporting.%player%} is true:
+                    delete {hacker.teleporting.%player%}
+                    teleport player to {hacker.mark.%player%}
+                    apply glowing to player for 5 seconds
+                    send "&bТелепортация завершена!" to player
+                    addAnger(player, 1)
+                    awardXP(player, "hacker", 30)
+                wait 70 seconds
+                send "&a✔ Телепорт снова готов!" to player
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if victim is a player:
+        if {hacker.teleporting.%victim%} is true:
+            delete {hacker.teleporting.%victim%}
+            send "&cТелепортация прервана!" to victim
+
+on right click holding redstone:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&bСила":
+        if {char.%player%} is "hacker":
+            if tryCooldown(player, "hacker_cheat", 15) is true:
+                addAnger(player, 0.2)
+                awardXP(player, "hacker", 6)
+                # --- Основной эффект: Скорость / Резист / Невидимость ---
+                set {_rollMain} to a random integer between 1 and 3
+                if {_rollMain} is 1:
+                    apply speed 1 to player for 4 seconds
+                    send "&bБафф (основной): Скорость!" to player
+                else if {_rollMain} is 2:
+                    apply resistance 1 to player for 4 seconds
+                    send "&bБафф (основной): Резист!" to player
+                else:
+                    apply invisibility to player for 4 seconds
+                    send "&bБафф (основной): Невидимость!" to player
+                # --- Дополнительный эффект: Прыгучесть / Регенерация / Ночное зрение / Медленное падение ---
+                set {_rollExtra} to a random integer between 1 and 4
+                if {_rollExtra} is 1:
+                    apply jump boost 1 to player for 4 seconds
+                    send "&bБафф (доп.): Прыгучесть!" to player
+                else if {_rollExtra} is 2:
+                    apply regeneration 1 to player for 4 seconds
+                    send "&bБафф (доп.): Регенерация!" to player
+                else if {_rollExtra} is 3:
+                    apply night vision to player for 4 seconds
+                    send "&bБафф (доп.): Ночное зрение!" to player
+                else:
+                    apply slow falling to player for 4 seconds
+                    send "&bБафф (доп.): Медленное падение!" to player
+                wait 15 seconds
+                send "&a✔ Сила снова готова!" to player
+
+# ---------------------------------------------------------
+
+# КИРИЛЛ (выживший, Рашер) — Вор / Глич / Имплант
+# Шкала ячеек: {kirill.cells.%p%} (0-10, старт 6). Режим Глича:
+# {kirill.mode.%p%} = "bumper" | "ghost" | "maneuver". Заряд спец-версии
+# Бампера/Призрака (общий на оба): {kirill.modeCharged.%p%}.
+#
+# ВАЖНО: рывок реализован через толчок (push ... at speed X), а не через
+# точную телепортацию — как и все остальные "рывки/отбросы" в этом файле
+# (см. Дэндэна/Илью/Аномалию). Указанные в дизайне 5/10/3 блока — целевой
+# ориентир для подбора скорости, а не гарантированная точная дистанция;
+# рекомендую подстроить числа {_speed} ниже по факту тестов на сервере.
+# ---------------------------------------------------------
+
+# --- Заряжает 1 ячейку шкалы Кирилла (макс. 10). Вызывается из generators.sk
+#     при починке гена и отсюда же при удачном столкновении в заряженном
+#     Бампере/Призраке. Безопасно звать для не-Кирилла — просто ничего не делает. ---
+function chargeKirillCell(p: player):
+    if {char.%{_p}%} is "kirill":
+        if {kirill.cells.%{_p}%} is not set:
+            set {kirill.cells.%{_p}%} to 0
+        if {kirill.cells.%{_p}%} < 10:
+            add 1 to {kirill.cells.%{_p}%}
+            send "&e+1 ячейка Импланта (%{kirill.cells.%{_p}%}%/10)" to {_p}
+
+# --- Перезарядка спец-версии Бампера/Призрака: сбрасывает заряд, ждёт 40 сек,
+#     возвращает. Общая на оба режима — переключение Гличем прогресс не сбрасывает. ---
+function kirillStartModeRecharge(p: player):
+    set {kirill.modeCharged.%{_p}%} to false
+    wait 40 seconds
+    if {char.%{_p}%} is "kirill":
+        set {kirill.modeCharged.%{_p}%} to true
+        send "&6Бампер/Призрак снова заряжены!" to {_p}
+
+# --- Эффект попадания при рывке в конкретном разрешённом режиме ---
+function kirillOnCollision(p: player, m: player, mode: text):
+    if {_mode} is "bumper":
+        push {_m} away from {_p} with speed 3.2
+        send "&6Бампер! Убийца отброшен." to {_p}
+        chargeKirillCell({_p})
+        kirillStartModeRecharge({_p})
+    else if {_mode} is "ghost":
+        apply speed 3 to {_p} for 5 seconds
+        send "&bПризрак! Получена скорость." to {_p}
+        chargeKirillCell({_p})
+        kirillStartModeRecharge({_p})
+    else:
+        send "&7Столкновение с убийцей." to {_p}
+
+# --- Собственно рывок: толкает игрока и тикает, проверяя столкновение с
+#     живым убийцей на протяжении полёта. resolvedMode уже посчитан заранее
+#     в основном хендлере (base/bumper/ghost/maneuver). ---
+function kirillTryDashCollision(p: player, resolvedMode: text) :: boolean:
+    set {_nearest} to 9999
+    delete {_maniac}
+    loop all players:
+        if isManiac({char.%loop-player%}) is true:
+            if {alive.%loop-player%} is true:
+                set {_d} to distance between {_p} and loop-player
+                if {_d} < {_nearest}:
+                    set {_nearest} to {_d}
+                    set {_maniac} to loop-player
+    delete {_dummyHit}
+    set {_dm} to dummyNearest(location of {_p}, "maniac", {_nearest})
+    if {_dm} is set:
+        set {_dummyHit} to {_dm}
+        set {_nearest} to distance between {_p} and {_dm}
+    if {_nearest} < {@kirillHitRadius}:
+        set {kirill.dashHit.%{_p}%} to true
+        if {_dummyHit} is set:
+            dummyKirillCollision({_p}, {_dummyHit}, {_resolvedMode})
+        else if {_maniac} is set:
+            kirillOnCollision({_p}, {_maniac}, {_resolvedMode})
+        return true
+    return false
+
+# Проверка столкновения выполняется до импульса и после каждого тика движения:
+# так контакт в упор не теряется из-за смещения игрока в первый тик.
+function kirillPerformDash(p: player, resolvedMode: text):
+    if {_resolvedMode} is "maneuver":
+        set {_speed} to 1.7
+        set {_steps} to 16
+    else if {_resolvedMode} is "ghost":
+        set {_speed} to 0.65
+        set {_steps} to 8
+    else:
+        set {_speed} to 0.95
+        set {_steps} to 10
+
+    set {kirill.dashHit.%{_p}%} to false
+    if kirillTryDashCollision({_p}, {_resolvedMode}) is true:
+        stop
+    push {_p} in direction of {_p} at speed {_speed}
+
+    loop {_steps} times:
+        wait 1 tick
+        if {char.%{_p}%} is not "kirill":
+            stop loop
+        if {kirill.dashHit.%{_p}%} is true:
+            stop loop
+        if kirillTryDashCollision({_p}, {_resolvedMode}) is true:
+            stop loop
+
+    if {_resolvedMode} is "maneuver":
+        apply slowness 3 to {_p} for 3 seconds
+
+# --- Вор: рывок в сторону взгляда, кулдаун 25 сек. Режим/заряд решают,
+#     какая версия рывка реально сработает. ---
+on right click holding leather:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&aВор":
+        if {char.%player%} is "kirill":
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if tryCooldown(player, "kirill_dash", 25) is true:
+                set {_mode} to {kirill.mode.%player%}
+                if {_mode} is "maneuver":
+                    send "&eПодготовка к рывку..." to player
+                    apply slowness 250 to player for 2 seconds
+                    wait 2 seconds
+                    # За 2 секунды раунд мог закончиться / Кирилла могли убить или оглушить
+                    if dbgLive() is not true:
+                        stop
+                    if dbgAlive(player) is not true:
+                        stop
+                    if {stunned.%player%} is true:
+                        stop
+                    send "&aИспользовано: Вор (Маневренность)" to player
+                    kirillPerformDash(player, "maneuver")
+                else:
+                    if {kirill.modeCharged.%player%} is true:
+                        send "&aИспользовано: Вор (%{_mode}%, заряжено)" to player
+                        kirillPerformDash(player, {_mode})
+                    else:
+                        send "&aИспользовано: Вор (базовый рывок)" to player
+                        kirillPerformDash(player, "base")
+                wait 25 seconds
+                send "&a✔ Вор снова готов!" to player
+
+# --- Глич: переключение режима первой способности, кулдаун 1 сек. ---
+on right click holding prismarine shard:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&bГлич":
+        if {char.%player%} is "kirill":
+            if tryCooldown(player, "kirill_glitch", 1) is true:
+                if {kirill.mode.%player%} is "bumper":
+                    set {kirill.mode.%player%} to "ghost"
+                    send "&bРежим Глича: Призрак" to player
+                else if {kirill.mode.%player%} is "ghost":
+                    set {kirill.mode.%player%} to "maneuver"
+                    send "&bРежим Глича: Маневренность" to player
+                else:
+                    set {kirill.mode.%player%} to "bumper"
+                    send "&bРежим Глича: Бампер" to player
+
+# --- Имплант: хилит 1 сердце в секунду, тратя по 2 ячейки за тик, пока не
+#     кончатся ячейки/хп не полное/не прервётся уроном. Кулдаун 70 сек с
+#     момента активации. Пассивка "Железо" (ниже, on heal) блокирует любой
+#     другой хил, пока этот тик не помечен как {kirill.implantHealing.%p%}. ---
+on right click holding netherite scrap:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&cИмплант":
+        if {char.%player%} is "kirill":
+            if {kirill.cells.%player%} is not set:
+                set {kirill.cells.%player%} to 0
+            if {kirill.cells.%player%} < 2:
+                send "&cНедостаточно ячеек для Импланта (нужно минимум 2)!" to player
+                stop
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            # Без этой проверки при полном здоровье Имплант сразу выключался,
+            # но кулдаун в 70 сек всё равно тратился
+            if health of player >= max health of player:
+                send "&7Здоровье уже полное — Имплант не нужен." to player
+                stop
+            if tryCooldown(player, "kirill_implant", 70) is true:
+                set {kirill.implantActive.%player%} to true
+                send "&cИмплант активирован!" to player
+                set {_elapsedImplant} to 0 seconds
+                while {kirill.implantActive.%player%} is true:
+                    if {kirill.cells.%player%} < 2:
+                        stop loop
+                    if health of player >= max health of player:
+                        stop loop
+                    remove 2 from {kirill.cells.%player%}
+                    set {kirill.implantHealing.%player%} to true
+                    heal player by 2
+                    delete {kirill.implantHealing.%player%}
+                    set {_elapsedImplant} to {_elapsedImplant} + 1 second
+                    wait 1 second
+                delete {kirill.implantActive.%player%}
+                send "&7Имплант завершил работу." to player
+                set {_remaining} to 70 seconds - {_elapsedImplant}
+                if {_remaining} > 0 seconds:
+                    wait {_remaining}
+                send "&a✔ Имплант снова готов!" to player
+
+# --- Прерывание Импланта уроном ---
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if {round.active} is true:
+        if victim is a player:
+            if {char.%victim%} is "kirill":
+                if {kirill.implantActive.%victim%} is true:
+                    delete {kirill.implantActive.%victim%}
+                    send "&cИмплант прерван уроном!" to victim
+
+# --- Пассивка "Железо": блокирует абсолютно любой хил, кроме тика Импланта ---
+on heal:
+    if {round.active} is true:
+        if event-entity is a player:
+            if {char.%event-entity%} is "kirill":
+                if {kirill.implantHealing.%event-entity%} is not true:
+                    cancel event
+
+# ---------------------------------------------------------

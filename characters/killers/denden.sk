@@ -1,0 +1,154 @@
+# =========================================================
+# ДЭНДЭН (id: denden) — убийца
+# Крюк, Взрывная месть, Зелье скорости и логика призванных криперов.
+# =========================================================
+
+# ---------------------------------------------------------
+# ДЭНДЭН (маньяк)
+# ---------------------------------------------------------
+
+on right click holding fishing rod:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&cКрюк":
+        if {char.%player%} is "denden":
+            cancel event
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if tryCooldown(player, "denden_hook", 30) is true:
+                set {_target} to player's target entity
+                set {_hit} to false
+                if {_target} is a player:
+                    if isManiac({char.%{_target}%}) is false:
+                        if distance between player and {_target} <= 20:
+                            set {_hit} to true
+                else if {dummy.kind.%{_target}%} is "survivor":
+                    if distance between player and {_target} <= 20:
+                        set {_hit} to true
+                if {_hit} is true:
+                    send "&cКрюк зацепил %{_target}%!" to player
+                    awardXP(player, "denden", 30)
+                else:
+                    send "&7Не за кого зацепиться." to player
+                loop 5 times:
+                    if {_hit} is true:
+                        if {_target} is alive:
+                            push {_target} towards player with speed 1
+                    wait 1 second
+                wait 25 seconds
+                send "&a✔ Крюк снова готов!" to player
+
+on right click holding gunpowder:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&cВзрывная месть":
+        if {char.%player%} is "denden":
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if tryCooldown(player, "denden_creeper", 45) is true:
+                spawn a creeper at location of player
+                set {_c} to last spawned entity
+                add {_c} to {denden.creepers::*}
+                set {denden.creeperBorn.%{_c}%} to now
+                send "&cКрипер призван и рвётся на ближайшего выжившего!" to player
+                awardXP(player, "denden", 10)
+                wait 1 tick
+                give gunpowder named "&cВзрывная месть" to player
+                wait 45 seconds
+                send "&a✔ Взрывная месть снова готова!" to player
+
+on explosion prime:
+    if event-entity is a creeper:
+        if {denden.creepers::*} contains event-entity:
+            set explosion radius to 2
+
+# --- ФИКС: крипер ДенДена не должен целиться в маньяка и ранить его (раньше
+#     в первую секунду, пока скрипт ещё не перенацелил крипера, ванильный ИИ
+#     брал в цель ближайшего игрока — самого ДенДена — и взрывался на нём;
+#     защита от урона маньяку работала только при {round.active}). ---
+on entity target:
+    if {denden.creepers::*} contains event-entity:
+        if target is a player:
+            if isManiac({char.%target%}) is true:
+                cancel event
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if victim is a player:
+        if isManiac({char.%victim%}) is true:
+            if attacker is a creeper:
+                if {denden.creepers::*} contains attacker:
+                    cancel event
+
+every 1 second:
+    if {round.active} is true:
+        loop {denden.creepers::*}:
+            set {_c} to loop-value
+            if {_c} is not alive:
+                remove {_c} from {denden.creepers::*}
+            else:
+                set {_expired} to false
+                if {denden.creeperBorn.%{_c}%} is set:
+                    if difference between {denden.creeperBorn.%{_c}%} and now > 20 seconds:
+                        set {_expired} to true
+                if {_expired} is true:
+                    delete {denden.creeperBorn.%{_c}%}
+                    remove {_c} from {denden.creepers::*}
+                    kill {_c}
+                else:
+                    set {_closest} to 9999
+                    delete {_target}
+                    loop all players:
+                        set {_s} to loop-player
+                        if {char.%{_s}%} is set:
+                            if isManiac({char.%{_s}%}) is false:
+                                if {alive.%{_s}%} is true:
+                                    set {_d} to distance between {_c} and {_s}
+                                    if {_d} < {_closest}:
+                                        set {_closest} to {_d}
+                                        set {_target} to {_s}
+                    if {_target} is set:
+                        set target of {_c} to {_target}
+                        if {_closest} < 3:
+                            damage {_target} by 4
+                            push {_target} away from {_c} with speed 1.2
+                            delete {denden.creeperBorn.%{_c}%}
+                            remove {_c} from {denden.creepers::*}
+                            kill {_c}
+
+on right click holding sugar:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&bЗелье скорости":
+        if {char.%player%} is "denden":
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if tryCooldown(player, "denden_speed", 50) is true:
+                maniacBoost(player, 15, 2)
+                send "&bИспользовано: Зелье скорости" to player
+                awardXP(player, "denden", 10)
+                wait 50 seconds
+                send "&a✔ Зелье скорости снова готово!" to player
+
+# ---------------------------------------------------------

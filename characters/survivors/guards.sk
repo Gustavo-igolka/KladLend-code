@@ -1,0 +1,656 @@
+# =========================================================
+# ВЫЖИВШИЕ — КЛАСС «СТРАЖИ»
+# Михуилонг, Илья, Dartikil и Маёр.
+# =========================================================
+
+# ---------------------------------------------------------
+# МИХУИЛОНГ (выживший)
+# ---------------------------------------------------------
+
+function getGuardStunDuration(charid: text) :: timespan:
+    set {_base} to 5
+    if {_charid} is "ilya":
+        set {_base} to 7
+    else if {_charid} is "mayor":
+        set {_base} to 4.5
+
+    set {_guardsCount} to 0
+    loop all players:
+        if {char.%loop-player%} is "mihuilong" or "ilya" or "mayor" or "dartikil":
+            add 1 to {_guardsCount}
+
+    if {_guardsCount} <= 1:
+        set {_seconds} to {_base}
+    else:
+        set {_seconds} to {_base} - (({_guardsCount} - 1) * 0.5)
+
+    if {_seconds} < 1:
+        set {_seconds} to 1
+
+    return "%{_seconds}% seconds" parsed as timespan
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if attacker is a player:
+        if victim is a player:
+            if name of attacker's tool is "&9Меч оглушения":
+                if {char.%attacker%} is "mihuilong":
+                    if isManiac({char.%victim%}) is true:
+                        cancel event
+                        if tryCooldown(attacker, "mihu_stun", 40) is true:
+                            send "&9Ты оглушил маньяка!" to attacker
+                            stunPlayer(victim, getGuardStunDuration("mihuilong"))
+                            apply slowness 2 to attacker for 2 seconds
+                            addAnger(attacker, 1)
+                            awardXP(attacker, "mihuilong", 30)
+
+on left click:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if {round.active} is true:
+        if name of player's tool is "&9Меч оглушения":
+            if {char.%player%} is "mihuilong":
+                tryCooldown(player, "mihu_stun", 40)
+
+on right click holding potion:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    cancel event
+    if name of player's tool is "&aЗелье исцеления":
+        if {char.%player%} is "mihuilong":
+            if {mihuilong.heals.%player%} > 0:
+                heal player by 3
+                remove 1 from {mihuilong.heals.%player%}
+                send "&aИсцеление использовано. Осталось: %{mihuilong.heals.%player%}%" to player
+                addAnger(player, 0.5)
+                awardXP(player, "mihuilong", 15)
+            else:
+                send "&cЗелья исцеления закончились на этот раунд." to player
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if attacker is a player:
+        if victim is a player:
+            if isManiac({char.%attacker%}) is true:
+                if attacker's tool is stone sword:
+                    if {stunned.%attacker%} is true:
+                        cancel event
+                        stop
+                    if {staggered.%attacker%} is true:
+                        cancel event
+                        stop
+                    if {anomaly.stalking.%attacker%} is true:
+                        cancel event
+                        stop
+                    if tryCooldown(attacker, "maniac_melee", 3) is false:
+                        cancel event
+                    else:
+                        resetBloodlust(attacker)
+                        if {char.%attacker%} is "blind":
+                            sporeInfect(victim)
+
+on left click:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if {round.active} is true:
+        if player's tool is stone sword:
+            if isManiac({char.%player%}) is true:
+                if {stunned.%player%} is not true:
+                    if {staggered.%player%} is not true:
+                        if {anomaly.stalking.%player%} is not true:
+                            tryCooldown(player, "maniac_melee", 3)
+
+# ---------------------------------------------------------
+
+# ИЛЬЯ (выживший, "страж")
+# ---------------------------------------------------------
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if attacker is a player:
+        if victim is a player:
+            if {char.%attacker%} is "ilya":
+                if attacker's tool is wooden sword:
+                    if isManiac({char.%victim%}) is true:
+                        cancel event
+                        if tryCooldown(attacker, "ilya_blade", 30) is true:
+                            if {ilya_buffed.%attacker%} is true:
+                                push attacker in direction of attacker at speed 1.5
+                                stunPlayer(victim, getGuardStunDuration("ilya"))
+                                heal attacker by 1
+                                add 1 to {ilya_stunCount.%attacker%}
+                                send "&aРывок! Убийца оглушён со спины." to attacker
+                                addAnger(attacker, 0.2)
+                                awardXP(attacker, "ilya", 6)
+                                if {ilya_stunCount.%attacker%} >= 3:
+                                    set {ilya_charged.%attacker%} to true
+                                    send "&6Шкала заряжена! Ты сможешь возродиться при смерти." to attacker
+                            else if isBehind(attacker, victim) is true:
+                                stunPlayer(victim, getGuardStunDuration("ilya"))
+                                heal attacker by 1
+                                add 1 to {ilya_stunCount.%attacker%}
+                                send "&aУдар в спину! Убийца оглушён." to attacker
+                                addAnger(attacker, 1)
+                                awardXP(attacker, "ilya", 30)
+                                if {ilya_stunCount.%attacker%} >= 3:
+                                    set {ilya_charged.%attacker%} to true
+                                    send "&6Шкала заряжена! Ты сможешь возродиться при смерти." to attacker
+                            else:
+                                apply slowness 1 to victim for 5 seconds
+                                heal attacker by 0.5
+                                send "&bУдар в лицо — только замедление." to attacker
+                                staggerPlayer(victim, 4 seconds)
+                                addAnger(attacker, 0.5)
+                                awardXP(attacker, "ilya", 15)
+                            wait 30 seconds
+                            send "&a✔ Деревянный клинок снова готов!" to attacker
+                        else:
+                            cancel event
+
+on left click:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if {round.active} is true:
+        if name of player's tool is "&fДеревянный клинок":
+            if {char.%player%} is "ilya":
+                tryCooldown(player, "ilya_blade", 30)
+
+function isBehind(attacker: player, victim: player) :: boolean:
+    set {_victimYaw} to yaw of location of {_victim}
+    set {_dirVec} to vector from location of {_victim} to location of {_attacker}
+    set {_dirYaw} to yaw of {_dirVec}
+    set {_diff} to {_dirYaw} - {_victimYaw}
+    while {_diff} > 180:
+        subtract 360 from {_diff}
+    while {_diff} < -180:
+        add 360 to {_diff}
+    if {_diff} < 0:
+        set {_diff} to {_diff} * -1
+    if {_diff} > 120:
+        return true
+    else:
+        return false
+
+on right click holding gray dye:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&fКраска":
+        if {char.%player%} is "ilya":
+            if tryCooldown(player, "ilya_paint", 60) is true:
+                set {ilya_buffed.%player%} to true
+                apply slowness 1 to player for 5 seconds
+                apply invisibility to player for 5 seconds
+                send "&fИспользовано: Краска" to player
+                wait 5 seconds
+                delete {ilya_buffed.%player%}
+                wait 55 seconds
+                send "&a✔ Краска снова готова!" to player
+
+on right click holding ghast tear:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&aВозрождение":
+        if {char.%player%} is "ilya":
+            if {ilya.markUsed.%player%} is true:
+                send "&cТы уже поставил метку в этом раунде." to player
+                stop
+            set {ilya.mark.%player%} to location of player
+            set {ilya.markUsed.%player%} to true
+            send "&aТочка возрождения отмечена. Это можно сделать только раз за раунд." to player
+
+# ---------------------------------------------------------
+# DARTIKIL — выживший, класс «страж» (хп на старте 6–9 сердец, см. characters.sk)
+#
+# Пассивка «Заряды»: {dart.charges.%p%} от 0 до 3. Копятся Монетой, тратятся
+# Пистолетом / Знаком / Шляпой (все три тратят ВСЕ заряды).
+#   Монета  (КД 1)  — 50/50: +1 заряд или медлительность. Каждая неудача поднимает
+#                     уровень (I, II...) до {@dartMaxSlow}, таймер 10 сек обновляется.
+#                     Любой полученный урон снимает медлительность целиком.
+#   Пистолет (КД 40, от 1 заряда) — 1,5 сек подготовки стоя, потом исход по зарядам:
+#                     1: 50/25/25, 2: 70/15/15, 3: 90/5/5 (Выстрел/Ничего/Взрыв).
+#                     Выстрел — луч как у Томаса, стан зависит от расстояния.
+#                     Взрыв — урон себе и выжившим рядом, убийце рядом стан 10 сек;
+#                     после него пистолет сломан до Шляпы.
+#   Знак    (КД 30, от 1 заряда) — случайный максимум хп 6–12 сердец (+1 при 2 зарядах,
+#                     +2 при 3); текущее хп смещается на ту же разницу, но не ниже 1 сердца.
+#   Шляпа   (КД 70, только 3 заряда) — снижает медлительность до I и чинит пистолет.
+# ---------------------------------------------------------
+
+function dartCharges(p: player) :: number:
+    if {dart.charges.%{_p}%} is not set:
+        return 0
+    return {dart.charges.%{_p}%}
+
+# Стан Выстрела: 6 сек в упор, линейно падает до 1 сек на предельной дальности луча.
+# Как и у остальных стражей, -0.5 сек за каждого лишнего стража в раунде (не меньше 1).
+function dartStunSeconds(dist: number) :: number:
+    set {_s} to 6 - (({_dist} / {@thomasBeamRange}) * 5)
+    set {_guards} to 0
+    loop all players:
+        if {char.%loop-player%} is "mihuilong" or "ilya" or "mayor" or "dartikil":
+            add 1 to {_guards}
+    if {_guards} > 1:
+        set {_s} to {_s} - (({_guards} - 1) * 0.5)
+    if {_s} < 1:
+        set {_s} to 1
+    return {_s}
+
+function dartBeam(p: player, len: number):
+    loop floor({_len}) times:
+        execute console command "/execute as %{_p}% at @s anchored eyes run particle minecraft:dust{color:[1.0,0.6,0.1],scale:1} ^ ^ ^%loop-number% 0 0 0 0 2 force"
+
+function dartStunTarget(t: entity, secs: number):
+    set {_d} to "%{_secs}% seconds" parsed as timespan
+    if {_t} is a player:
+        stunPlayer({_t}, {_d})
+    else:
+        dummyStatus({_t}, "&e[ОШЕЛОМЛЁН]", {_d})
+
+# Медлительность Монеты: уровень задаётся только литералом (Skript не принимает
+# переменную в «apply slowness N»), поэтому уровни 1–6 разобраны по веткам.
+function dartApplySlow(p: player, lvl: number):
+    remove slowness from {_p}
+    if {_lvl} <= 1:
+        apply slowness 1 to {_p} for 10 seconds
+    else if {_lvl} is 2:
+        apply slowness 2 to {_p} for 10 seconds
+    else if {_lvl} is 3:
+        apply slowness 3 to {_p} for 10 seconds
+    else if {_lvl} is 4:
+        apply slowness 4 to {_p} for 10 seconds
+    else if {_lvl} is 5:
+        apply slowness 5 to {_p} for 10 seconds
+    else:
+        apply slowness 6 to {_p} for 10 seconds
+
+# --- Монета ---
+on right click holding raw gold:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&6Монета":
+        if {char.%player%} is "dartikil":
+            cancel event
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if dartCharges(player) >= 3:
+                send "&eУже 3 заряда — монета не нужна." to player
+                stop
+            if tryCooldown(player, "dart_coin", 1) is true:
+                set {_roll} to a random integer between 1 and 2
+                if {_roll} is 1:
+                    set {dart.charges.%player%} to dartCharges(player) + 1
+                    send "&6Монета: &aудача! &e+1 заряд (%{dart.charges.%player%}%/3)" to player
+                else:
+                    set {_lvl} to 1
+                    if {dart.slowLevel.%player%} is set:
+                        set {_lvl} to {dart.slowLevel.%player%} + 1
+                    if {_lvl} > {@dartMaxSlow}:
+                        set {_lvl} to {@dartMaxSlow}
+                    set {dart.slowLevel.%player%} to {_lvl}
+                    remove slowness from player
+                    dartApplySlow(player, {_lvl})
+                    set {dart.slowToken.%player%} to now
+                    set {_tok} to {dart.slowToken.%player%}
+                    send "&6Монета: &cне повезло. &7Медлительность %{_lvl}% на 10 сек." to player
+                    wait 10 seconds
+                    if {dart.slowToken.%player%} is {_tok}:
+                        delete {dart.slowLevel.%player%}
+                        delete {dart.slowToken.%player%}
+
+# Любой урон по Dartikil сразу снимает медлительность от Монеты.
+on damage:
+    if victim is a player:
+        if {char.%victim%} is "dartikil":
+            if {dart.slowLevel.%victim%} is set:
+                delete {dart.slowLevel.%victim%}
+                delete {dart.slowToken.%victim%}
+                remove slowness from victim
+                send "&eУдар сбил медлительность от Монеты!" to victim
+
+# --- Пистолет ---
+on right click holding crossbow:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&cПистолет":
+        if {char.%player%} is "dartikil":
+            cancel event
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if {dart.pistolBroken.%player%} is true:
+                send "&cПистолет сломан — починить его может только Шляпа." to player
+                stop
+            set {_n} to dartCharges(player)
+            if {_n} < 1:
+                send "&cДля Пистолета нужен хотя бы 1 заряд." to player
+                stop
+            if tryCooldown(player, "dart_pistol", 40) is true:
+                set {_start} to now
+                set {dart.charges.%player%} to 0
+                send "&cПрицеливаешься... &7(зарядов потрачено: %{_n}%, стоишь 1,5 сек)" to player
+                projectSlowWalk(player, 0, 1.5 seconds)
+                if {stunned.%player%} is true:
+                    send "&cВыстрел сорван оглушением!" to player
+                else:
+                    set {_shot} to 50
+                    set {_none} to 25
+                    if {_n} is 2:
+                        set {_shot} to 70
+                        set {_none} to 15
+                    else if {_n} >= 3:
+                        set {_shot} to 90
+                        set {_none} to 5
+                    set {_r} to a random integer between 1 and 100
+                    if {_r} <= {_shot}:
+                        # --- Выстрел ---
+                        set {_t} to thomasTarget(player, "enemy")
+                        if {_t} is set:
+                            set {_dist} to distance between player and {_t}
+                            dartBeam(player, {_dist})
+                            set {_secs} to dartStunSeconds({_dist})
+                            send "&6&lВыстрел! &7Стан на %round({_secs} * 10) / 10% сек (дистанция ~%round({_dist})% м.)." to player
+                            awardXP(player, "dartikil", 20)
+                            dartStunTarget({_t}, {_secs})
+                        else:
+                            dartBeam(player, {@thomasBeamRange})
+                            send "&7Выстрел ушёл в пустоту." to player
+                    else if {_r} <= {_shot} + {_none}:
+                        # --- Ничего ---
+                        send "&7Осечка. Заряды потрачены впустую." to player
+                    else:
+                        # --- Взрыв ---
+                        set {_loc} to location of player
+                        execute console command "/particle minecraft:explosion %x-coord of {_loc}% %y-coord of {_loc}% %z-coord of {_loc}% 0 0 0 0 1 force"
+                        execute console command "/playsound minecraft:entity.generic.explode player @a %x-coord of {_loc}% %y-coord of {_loc}% %z-coord of {_loc}% 1"
+                        set {dart.pistolBroken.%player%} to true
+                        send "&4&lВзрыв! &cПистолет сломан — нужна Шляпа." to player
+                        delete {_hit::*}
+                        loop all players:
+                            set {_o} to loop-player
+                            if {_o} is not player:
+                                if distance between {_o} and {_loc} <= {@dartBlastRadius}:
+                                    if isManiac({char.%{_o}%}) is true:
+                                        add {_o} to {_hit::*}
+                                    else if {alive.%{_o}%} is true:
+                                        damage {_o} by {@dartBlastDamage}
+                                        send "&cТебя задел взрыв пистолета!" to {_o}
+                        damage player by {@dartBlastDamage}
+                        set {_dm} to dummyNearest({_loc}, "maniac", {@dartBlastRadius})
+                        if {_dm} is set:
+                            dummyStatus({_dm}, "&e[ОГЛУШЕН]", 10 seconds)
+                        loop {_hit::*}:
+                            send "&6Взрыв накрыл убийцу: стан на 10 сек!" to player
+                            awardXP(player, "dartikil", 25)
+                            stunPlayer(loop-value, 10 seconds)
+                set {_left} to 40 seconds - (difference between {_start} and now)
+                if {_left} > 0 seconds:
+                    wait {_left}
+                if {dart.pistolBroken.%player%} is true:
+                    send "&7Откат Пистолета прошёл, но он сломан." to player
+                else:
+                    send "&a✔ Пистолет снова готов!" to player
+
+# --- Знак ---
+on right click holding oak sign:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&eЗнак":
+        if {char.%player%} is "dartikil":
+            cancel event
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            set {_n} to dartCharges(player)
+            if {_n} < 1:
+                send "&cДля Знака нужен хотя бы 1 заряд." to player
+                stop
+            if tryCooldown(player, "dart_sign", 30) is true:
+                set {dart.charges.%player%} to 0
+                set {_old} to max health of player
+                set {_new} to a random integer between 6 and 12
+                if {_n} is 2:
+                    add 1 to {_new}
+                else if {_n} >= 3:
+                    add 2 to {_new}
+                set {_hp} to (health of player) + ({_new} - {_old})
+                if {_hp} < 1:
+                    set {_hp} to 1
+                if {_hp} > {_new}:
+                    set {_hp} to {_new}
+                if {_new} < {_old}:
+                    set health of player to {_hp}
+                    set max health of player to {_new}
+                else:
+                    set max health of player to {_new}
+                    wait 1 tick
+                    set health of player to {_hp}
+                send "&e&lЗнак! &7Максимум хп: %{_old}% → %{_new}% сердец (потрачено зарядов: %{_n}%)." to player
+                wait 30 seconds
+                send "&a✔ Знак снова готов!" to player
+
+# --- Шляпа ---
+on right click holding leather helmet:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&8Шляпа":
+        if {char.%player%} is "dartikil":
+            cancel event
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if dartCharges(player) < 3:
+                send "&cШляпе нужны все 3 заряда." to player
+                stop
+            if tryCooldown(player, "dart_hat", 70) is true:
+                set {_start} to now
+                set {dart.charges.%player%} to 0
+                send "&8&lШляпа! &7Заряды потрачены." to player
+                if {dart.pistolBroken.%player%} is true:
+                    delete {dart.pistolBroken.%player%}
+                    send "&aПистолет починен." to player
+                if {dart.slowLevel.%player%} is set:
+                    if {dart.slowLevel.%player%} > 1:
+                        set {dart.slowLevel.%player%} to 1
+                        remove slowness from player
+                        dartApplySlow(player, 1)
+                        set {dart.slowToken.%player%} to now
+                        set {_tok} to {dart.slowToken.%player%}
+                        send "&7Медлительность снижена до I." to player
+                        wait 10 seconds
+                        if {dart.slowToken.%player%} is {_tok}:
+                            delete {dart.slowLevel.%player%}
+                            delete {dart.slowToken.%player%}
+                set {_left} to 70 seconds - (difference between {_start} and now)
+                if {_left} > 0 seconds:
+                    wait {_left}
+                send "&a✔ Шляпа снова готова!" to player
+
+# МАЁР (выживший, "страж")
+# ---------------------------------------------------------
+
+function grantMayorAbsorption(p: player):
+    apply absorption 1 to {_p} for 999999 seconds
+    send "&6&l✚ Over Heal обновлён: +2 сердца." to {_p}
+
+on right click holding paper:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&fПерри":
+        if {char.%player%} is "mayor":
+            cancel event
+            if tryCooldown(player, "mayor_perry", 23) is true:
+                set {mayor.parrying.%player%} to true
+                delete {mayor.parrySuccess.%player%}
+                apply slowness 5 to player for 3 seconds
+                apply resistance 5 to player for 3 seconds
+                send "&fТы приготовился парировать..." to player
+                wait 3 seconds
+                delete {mayor.parrying.%player%}
+                if {mayor.parrySuccess.%player%} is not true:
+                    apply slowness 1 to player for 3 seconds
+                    send "&cПарирование не удалось..." to player
+                wait 20 seconds
+                send "&a✔ Перри снова готово!" to player
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if victim is a player:
+        if {char.%victim%} is "mayor":
+            if {mayor.parrying.%victim%} is true:
+                if attacker is a player:
+                    set {_validParry} to false
+                    if isManiac({char.%attacker%}) is true:
+                        if attacker's tool is stone sword:
+                            set {_validParry} to true
+                    else if {event.misha.br_active} is true:
+                        if attacker's tool is wooden sword:
+                            set {_validParry} to true
+
+                    if {_validParry} is true:
+                        cancel event
+                        set {mayor.parryBlocked.%victim%} to true
+                        if {mayor.parrySuccess.%victim%} is not true:
+                            set {mayor.parrySuccess.%victim%} to true
+                            set {mayor.power.%victim%} to true
+                            grantMayorAbsorption(victim)
+                            delete {cd.mayor_strike.%victim%}
+                            clearCooldown(victim, "mayor_strike")
+                            delete {cdr::mayor_strike.%victim%}
+                            addAnger(victim, 1)
+                            awardXP(victim, "mayor", 30)
+                            send "&a&lПарирование удалось! Удар мгновенно готов, Сверхудар активен 2 сек." to victim
+                            wait 2 seconds
+                            delete {mayor.power.%victim%}
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if attacker is a player:
+        if victim is a player:
+            if name of attacker's tool is "&6Пинок":
+                if {char.%attacker%} is "mayor":
+                    set {_kickAllowed} to false
+                    if isManiac({char.%victim%}) is true:
+                        set {_kickAllowed} to true
+                    else if {event.misha.br_active} is true:
+                        set {_kickAllowed} to true
+                    if {_kickAllowed} is true:
+                        cancel event
+                        if tryCooldown(attacker, "mayor_kick", 45) is true:
+                            push victim away from attacker with speed 3
+                            staggerPlayer(victim, 4 seconds)
+                            send "&6Пинок! Противник отброшен и ошеломлён." to attacker
+                            addAnger(attacker, 1)
+                            awardXP(attacker, "mayor", 30)
+                            wait 45 seconds
+                            send "&a✔ Пинок снова готов!" to attacker
+                        else:
+                            cancel event
+
+on left click:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if {round.active} is true:
+        if name of player's tool is "&6Пинок":
+            if {char.%player%} is "mayor":
+                tryCooldown(player, "mayor_kick", 45)
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if attacker is a player:
+        if victim is a player:
+            if name of attacker's tool is "&7Удар":
+                if {char.%attacker%} is "mayor":
+                    set {_strikeAllowed} to false
+                    if isManiac({char.%victim%}) is true:
+                        set {_strikeAllowed} to true
+                    else if {event.misha.br_active} is true:
+                        set {_strikeAllowed} to true
+                    if {_strikeAllowed} is true:
+                        cancel event
+                        if tryCooldown(attacker, "mayor_strike", 60) is true:
+                            if {mayor.power.%attacker%} is true:
+                                stunPlayer(victim, getGuardStunDuration("mayor"))
+                                push victim away from attacker with speed 3
+                                send "&6&lСверхудар! Противник оглушён (стан)!" to attacker
+                                addAnger(attacker, 1.5)
+                                awardXP(attacker, "mayor", 45)
+                                wait 60 seconds
+                                send "&a✔ Удар снова готов!" to attacker
+                            else:
+                                apply slowness 1 to victim for 3 seconds
+                                staggerPlayer(victim, 3 seconds)
+                                push victim away from attacker with speed 1.2
+                                send "&7Удар прошёл! Противник замедлен и ошеломлён." to attacker
+                                addAnger(attacker, 1)
+                                awardXP(attacker, "mayor", 30)
+                                wait 60 seconds
+                                send "&a✔ Удар снова готов!" to attacker
+                        else:
+                            cancel event
+
+on left click:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if {round.active} is true:
+        if name of player's tool is "&7Удар":
+            if {char.%player%} is "mayor":
+                tryCooldown(player, "mayor_strike", 60)
+
+# ---------------------------------------------------------

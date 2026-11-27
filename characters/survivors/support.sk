@@ -1,0 +1,610 @@
+# =========================================================
+# ВЫЖИВШИЕ — КЛАСС «ПОДДЕРЖКА»
+# МякШмяк, Томас, Саня и Детектив.
+# =========================================================
+
+# АЛЕКСЕЙ (выживший)
+# ---------------------------------------------------------
+
+on right click holding splash potion:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    cancel event
+    if name of player's tool is "&dЗелье исцеления":
+        if {char.%player%} is "alexey":
+            if tryCooldown(player, "alexey_heal", 60) is true:
+                # В БР нет союзников — АОЕ-хил всех рядом лечил бы и
+                # противников, поэтому там лечим только себя
+                if {event.misha.br_active} is true:
+                    if health of player < max health of player:
+                        heal player by 3
+                        send "&dИспользовано: Зелье исцеления (только на себя)" to player
+                        addAnger(player, 0.5)
+                        awardXP(player, "alexey", 15)
+                    else:
+                        send "&dИспользовано: Зелье исцеления" to player
+                else:
+                    set {_healedCount} to 0
+                    loop all players within 4 blocks of player:
+                        if loop-player is not player:
+                            if {alive.%loop-player%} is true:
+                                if isManiac({char.%loop-player%}) is false:
+                                    if {char.%loop-player%} is not "kirill":
+                                        if health of loop-player < max health of loop-player:
+                                            add 1 to {_healedCount}
+                    loop all players within 4 blocks of player:
+                        if {alive.%loop-player%} is true:
+                            if isManiac({char.%loop-player%}) is false:
+                                if {char.%loop-player%} is not "kirill":
+                                    heal loop-player by 3
+                    send "&dИспользовано: Зелье исцеления" to player
+                    if {_healedCount} > 0:
+                        addAnger(player, 0.5 * {_healedCount})
+                        awardXP(player, "alexey", 15 * {_healedCount})
+                give splash potion named "&dЗелье исцеления" to player
+                wait 60 seconds
+                send "&a✔ Зелье исцеления снова готово!" to player
+
+on right click holding sugar:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&5Рывок":
+        if {char.%player%} is "alexey":
+            if tryCooldown(player, "alexey_pearl", 40) is true:
+                apply speed 4 to player for 3 seconds
+                send "&dИспользовано: Рывок" to player
+                addAnger(player, 0.5)
+                awardXP(player, "alexey", 15)
+                wait 40 seconds
+                send "&a✔ Рывок снова готов!" to player
+
+# ---------------------------------------------------------
+
+# ТОМАС — выживший, класс поддержки
+# ---------------------------------------------------------
+
+# Три способности — мгновенные лучи (как Магический лук Некромансика), стрел нет.
+# Предметы остаются луками, но по ПКМ стреляет не стрела, а луч: цель в прицеле,
+# дальность {@thomasBeamRange} блоков. Для луча используется увеличенный hitbox.
+#   Лук: Скорость   (КД 25) — союзник: Speed I + поглощение на 3 сек
+#   Лук: Замедление (КД 25) — убийца: замедление + свечение 5 сек + ошеломление 4 сек
+#   Лук: Стойкость  (КД 35) — союзник: Resistance IV до 7 сек; Томас получает Slowness IV
+#   и не может двигаться. Промах по Стойкости не тратит перезарядку.
+# В Батл Рояле (event.sk) союзников нет: баф Скорости/Стойкости уходит самому Томасу,
+# а луч Замедления бьёт любого другого игрока.
+
+function thomasBeam(p: player, len: number):
+    loop floor({_len}) times:
+        execute console command "/execute as %{_p}% at @s anchored eyes run particle minecraft:dust{color:[0.2,0.8,1.0],scale:1} ^ ^ ^%loop-number% 0 0 0 0 2 force"
+
+# Цель луча Томаса. Увеличенный ray size расширяет хитбоксы целей вокруг прицела.
+function thomasTarget(p: player, kind: text) :: entity:
+    delete {_found}
+    set {_t} to target entity of {_p} with ray size 1
+    if {_t} is a player:
+        if {_t} is not {_p}:
+            if distance between {_p} and {_t} <= {@thomasBeamRange}:
+                if {_kind} is "ally":
+                    if isManiac({char.%{_t}%}) is false:
+                        set {_found} to {_t}
+                else:
+                    if isManiac({char.%{_t}%}) is true:
+                        set {_found} to {_t}
+                    else if {event.misha.br_active} is true:
+                        set {_found} to {_t}
+    else if {dummy.kind.%{_t}%} is set:
+        if distance between {_p} and {_t} <= {@thomasBeamRange}:
+            if {_kind} is "ally":
+                if {dummy.kind.%{_t}%} is "survivor":
+                    set {_found} to {_t}
+            else:
+                if {dummy.kind.%{_t}%} is "maniac":
+                    set {_found} to {_t}
+    return {_found}
+
+function thomasEndResist(p: player):
+    set {_target} to {thomas.resistTarget.%{_p}%}
+    delete {thomas.resistActive.%{_p}%}
+    delete {thomas.resistTarget.%{_p}%}
+    delete {thomas.resistToken.%{_p}%}
+    if {_p} is online:
+        remove slowness from {_p}
+    if {_target} is set:
+        if {_target} is alive:
+            remove resistance from {_target}
+
+# Томас фиксируется на выбранной цели максимум на 7 секунд.
+# Потеря прямой видимости, смерть/выход цели или любой полученный урон прерывают эффект.
+function thomasResist(p: player, t: entity):
+    set {_token} to now
+    set {thomas.resistActive.%{_p}%} to true
+    set {thomas.resistTarget.%{_p}%} to {_t}
+    set {thomas.resistToken.%{_p}%} to {_token}
+    apply slowness 4 to {_p} for 7 seconds
+    apply resistance 4 to {_t} for 7 seconds
+    send "&bТы закрепился на союзнике. Удерживай его в поле зрения 7 секунд!" to {_p}
+    if {_t} is a player:
+        send "&bТомас поддерживает тебя: Resistance IV на 7 секунд." to {_t}
+    else:
+        send "&b[DUMMY] Томас: Resistance IV на манекене на срок до 7 сек." to {_p}
+
+    loop 140 times:
+        wait 1 tick
+        if {thomas.resistToken.%{_p}%} is not {_token}:
+            stop loop
+        if {_p} is not online:
+            thomasEndResist({_p})
+            stop loop
+        if {_t} is a player:
+            if {_t} is not online:
+                thomasEndResist({_p})
+                stop loop
+        if {_t} is not alive:
+            thomasEndResist({_p})
+            if {_p} is online:
+                send "&cСоюзник больше не может поддерживать связь. Способность прервана." to {_p}
+            stop loop
+        if {_p} has no direct line of sight to {_t}:
+            thomasEndResist({_p})
+            send "&cТы потерял союзника из виду. Способность прервана." to {_p}
+            stop loop
+
+    if {thomas.resistToken.%{_p}%} is {_token}:
+        thomasEndResist({_p})
+        send "&aПоддержка завершена." to {_p}
+
+# Во время Стойкости Томас физически не может перемещаться.
+on player move:
+    if {thomas.resistActive.%player%} is true:
+        cancel event
+
+function thomasApply(p: player, t: entity, type: text):
+    if {_t} is a player:
+        addAnger({_p}, 0.5)
+        awardXP({_p}, "thomas", 15)
+        if {_type} is "speed":
+            if {event.misha.br_active} is true:
+                apply speed 1 to {_p} for 3 seconds
+                apply absorption 1 to {_p} for 3 seconds
+                send "&bБатл Рояль: баф уходит тебе — Скорость + Оверхил!" to {_p}
+            else:
+                apply speed 1 to {_t} for 3 seconds
+                apply absorption 1 to {_t} for 3 seconds
+                send "&bЛуч попал: союзник получил Скорость + Оверхил!" to {_p}
+                send "&bПолучен баф: Скорость + Оверхил!" to {_t}
+        else if {_type} is "slow":
+            send "&bЛуч попал: замедление, подсветка и ошеломление!" to {_p}
+            apply slowness 1 to {_t} for 5 seconds
+            apply glowing to {_t} for 5 seconds
+            staggerPlayer({_t}, 4 seconds)
+    else if {dummy.kind.%{_t}%} is set:
+        if {_type} is "speed":
+            apply speed 1 to {_t} for 3 seconds
+            apply absorption 1 to {_t} for 3 seconds
+            send "&b[DUMMY] Томас: баф Скорость 1 + Оверхил на 3 сек." to {_p}
+        else if {_type} is "slow":
+            apply slowness 1 to {_t} for 5 seconds
+            apply glowing to {_t} for 5 seconds
+            send "&b[DUMMY] Томас: замедление 1 + подсветка 5 сек + ошеломление 4 сек." to {_p}
+            dummyStatus({_t}, "&e[ОШЕЛОМЛЁН]", 4 seconds)
+
+function thomasCast(p: player, type: text):
+    if {_type} is "speed":
+        set {_key} to "thomas_speed"
+        set {_cd} to 25
+        set {_kind} to "ally"
+        set {_ready} to "&a✔ Лук скорости снова готов!"
+    else if {_type} is "slow":
+        set {_key} to "thomas_slow"
+        set {_cd} to 25
+        set {_kind} to "enemy"
+        set {_ready} to "&a✔ Лук замедления снова готов!"
+    else:
+        set {_key} to "thomas_resist"
+        set {_cd} to 35
+        set {_kind} to "ally"
+        set {_ready} to "&a✔ Лук стойкости снова готов!"
+
+    if {_type} is "resist":
+        # В Батл Рояле союзников нет: сохраняем личный баф, теперь Resistance IV.
+        if {event.misha.br_active} is true:
+            if tryCooldown({_p}, {_key}, {_cd}) is true:
+                apply resistance 4 to {_p} for 7 seconds
+                send "&bБатл Рояль: Стойкость IV на 7 секунд." to {_p}
+                set {_wait} to {_cd} * 1 second
+                wait {_wait}
+                send colored {_ready} to {_p}
+            stop
+        # Если способность ещё на перезарядке, не выдаём ложное сообщение о промахе.
+        if getCooldownRemaining({_p}, "thomas_resist") > 0:
+            send "&cЕщё не восстановилось, подожди немного." to {_p}
+            stop
+        set {_target} to thomasTarget({_p}, "ally")
+        if {_target} is set:
+            if tryCooldown({_p}, {_key}, {_cd}) is true:
+                thomasBeam({_p}, distance between {_p} and {_target})
+                if {_target} is a player:
+                    addAnger({_p}, 0.5)
+                    awardXP({_p}, "thomas", 15)
+                thomasResist({_p}, {_target})
+        else:
+            thomasBeam({_p}, {@thomasBeamRange})
+            send "&7Луч ушёл в пустоту. Перезарядка не потрачена." to {_p}
+        stop
+
+    if tryCooldown({_p}, {_key}, {_cd}) is true:
+        set {_target} to thomasTarget({_p}, {_kind})
+        if {_target} is set:
+            thomasBeam({_p}, distance between {_p} and {_target})
+            thomasApply({_p}, {_target}, {_type})
+        else:
+            thomasBeam({_p}, {@thomasBeamRange})
+            send "&7Луч ушёл в пустоту." to {_p}
+        set {_wait} to {_cd} * 1 second
+        wait {_wait}
+        send colored {_ready} to {_p}
+
+on right click holding bow:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if {char.%player%} is "thomas":
+        cancel event
+        if name of player's tool is "&bЛук: Скорость":
+            thomasCast(player, "speed")
+        else if name of player's tool is "&bЛук: Замедление":
+            thomasCast(player, "slow")
+        else if name of player's tool is "&bЛук: Стойкость":
+            thomasCast(player, "resist")
+
+# САНЯ (выживший, "поддержка") — 9 сердец.
+# ---------------------------------------------------------
+
+function destroySanyaStructures(p: player):
+    if {sanya.turret.%{_p}%} is set:
+        delete {sanyaOwner.%{sanya.turret.%{_p}%}%}
+        delete {sanyaType.%{sanya.turret.%{_p}%}%}
+        kill {sanya.turret.%{_p}%}
+        delete {sanya.turret.%{_p}%}
+    if {sanya.dispenser.%{_p}%} is set:
+        delete {sanyaOwner.%{sanya.dispenser.%{_p}%}%}
+        delete {sanyaType.%{sanya.dispenser.%{_p}%}%}
+        kill {sanya.dispenser.%{_p}%}
+        delete {sanya.dispenser.%{_p}%}
+
+function sanyaTurretAura(p: player, stand: entity):
+    while dbgLive() is true:
+        if {sanya.turret.%{_p}%} is not {_stand}:
+            stop loop
+        loop all players:
+            if {event.misha.br_active} is true:
+                if loop-player is not {_p}:
+                    if loop-player is within 10 blocks of {_stand}:
+                        apply slowness 2 to loop-player for 2 seconds
+            else if isManiac({char.%loop-player%}) is true:
+                if loop-player is within 10 blocks of {_stand}:
+                    apply slowness 2 to loop-player for 2 seconds
+        loop {dummy.list::*}:
+            if {dummy.kind.%loop-value%} is "maniac":
+                if loop-value is within 10 blocks of {_stand}:
+                    apply slowness 2 to loop-value for 2 seconds
+        wait 1 second
+
+function sanyaDispenserAura(p: player, stand: entity):
+    while dbgLive() is true:
+        if {sanya.dispenser.%{_p}%} is not {_stand}:
+            stop loop
+        # В БР лечит только владелицу — иначе лечила бы и противников,
+        # раз тут нет команды "выжившие против маньяка", а все против всех
+        if {event.misha.br_active} is true:
+            if {alive.%{_p}%} is true:
+                if {_p} is within 2 blocks of {_stand}:
+                    heal {_p} by 1
+        else:
+            loop all players:
+                if isManiac({char.%loop-player%}) is false:
+                    if {alive.%loop-player%} is true:
+                        if loop-player is within 2 blocks of {_stand}:
+                            if {char.%loop-player%} is not "kirill":
+                                heal loop-player by 1
+        loop {dummy.list::*}:
+            if {dummy.kind.%loop-value%} is "survivor":
+                if loop-value is within 2 blocks of {_stand}:
+                    send "&a[DUMMY] Раздатчик лечит манекен (+1 ХП каждые 5 сек)." to {dummy.owner}
+        wait 5 seconds
+
+on right click holding iron nugget:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&cТурель":
+        if {char.%player%} is "sanya":
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if tryCooldown(player, "sanya_turret", 40) is true:
+                send "&cУстановка турели... (6 сек, не двигайся!)" to player
+                set {_loc} to location of player
+                apply slowness 250 to player for 6 seconds
+                wait 6 seconds
+                if dbgLive() is true:
+                    if dbgAlive(player) is true:
+                        if {sanya.turret.%player%} is set:
+                            delete {sanyaOwner.%{sanya.turret.%player%}%}
+                            delete {sanyaType.%{sanya.turret.%player%}%}
+                            kill {sanya.turret.%player%}
+                            delete {sanya.turret.%player%}
+                        spawn an armor stand at {_loc}
+                        set {_stand} to last spawned entity
+                        
+                        set {_h} to leather helmet
+                        dye {_h} red
+                        set helmet of {_stand} to {_h}
+                        
+                        set {_c} to leather chestplate
+                        dye {_c} red
+                        set chestplate of {_stand} to {_c}
+                        
+                        set {_l} to leather leggings
+                        dye {_l} red
+                        set leggings of {_stand} to {_l}
+                        
+                        set {_b} to leather boots
+                        dye {_b} red
+                        set boots of {_stand} to {_b}
+
+                        set {sanyaOwner.%{_stand}%} to player
+                        set {sanyaType.%{_stand}%} to "turret"
+                        set {sanya.turret.%player%} to {_stand}
+                        send "&a✔ Турель установлена!" to player
+                        awardXP(player, "sanya", 20)
+                        sanyaTurretAura(player, {_stand})
+                wait 34 seconds
+                send "&a✔ Турель снова готова к установке!" to player
+
+on right click holding gold nugget:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&aРаздатчик":
+        if {char.%player%} is "sanya":
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if tryCooldown(player, "sanya_dispenser", 40) is true:
+                send "&aУстановка раздатчика... (6 сек, не двигайся!)" to player
+                set {_loc} to location of player
+                apply slowness 250 to player for 6 seconds
+                wait 6 seconds
+                if dbgLive() is true:
+                    if dbgAlive(player) is true:
+                        if {sanya.dispenser.%player%} is set:
+                            delete {sanyaOwner.%{sanya.dispenser.%player%}%}
+                            delete {sanyaType.%{sanya.dispenser.%player%}%}
+                            kill {sanya.dispenser.%player%}
+                            delete {sanya.dispenser.%player%}
+                        spawn an armor stand at {_loc}
+                        set {_stand} to last spawned entity
+                        
+                        set {_h} to leather helmet
+                        dye {_h} green
+                        set helmet of {_stand} to {_h}
+                        
+                        set {_c} to leather chestplate
+                        dye {_c} green
+                        set chestplate of {_stand} to {_c}
+                        
+                        set {_l} to leather leggings
+                        dye {_l} green
+                        set leggings of {_stand} to {_l}
+                        
+                        set {_b} to leather boots
+                        dye {_b} green
+                        set boots of {_stand} to {_b}
+
+                        set {sanyaOwner.%{_stand}%} to player
+                        set {sanyaType.%{_stand}%} to "dispenser"
+                        set {sanya.dispenser.%player%} to {_stand}
+                        send "&a✔ Раздатчик установлен!" to player
+                        awardXP(player, "sanya", 20)
+                        sanyaDispenserAura(player, {_stand})
+                wait 34 seconds
+                send "&a✔ Раздатчик снова готов к установке!" to player
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if victim is an armor stand:
+        if {sanyaOwner.%victim%} is set:
+            if attacker is a player:
+                set {_sanyaAllowed} to false
+                if isManiac({char.%attacker%}) is true:
+                    set {_sanyaAllowed} to true
+                else if {event.misha.br_active} is true:
+                    set {_sanyaAllowed} to true
+                if {_sanyaAllowed} is true:
+                    set {_owner} to {sanyaOwner.%victim%}
+                    set {_type} to {sanyaType.%victim%}
+                    if {_type} is "turret":
+                        if {sanya.turret.%{_owner}%} is victim:
+                            delete {sanya.turret.%{_owner}%}
+                        send "&cВаша турель уничтожена!" to {_owner}
+                    else if {_type} is "dispenser":
+                        if {sanya.dispenser.%{_owner}%} is victim:
+                            delete {sanya.dispenser.%{_owner}%}
+                        send "&cВаш раздатчик уничтожен!" to {_owner}
+                    delete {sanyaOwner.%victim%}
+                    delete {sanyaType.%victim%}
+                    kill victim
+                else:
+                    cancel event
+            else:
+                cancel event
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if victim is a player:
+        if {char.%victim%} is "sanya":
+            if {round.active} is true:
+                if event isn't cancelled:
+                    apply resistance 2 to victim for 6 seconds
+
+# --- Стойки Сани (турель/раздатчик): нельзя снимать с них броню правым кликом.
+#     Стойки без {sanyaOwner} (например, манекены) не затрагиваются. ---
+on right click on armor stand:
+    if {sanyaOwner.%clicked entity%} is set:
+        cancel event
+# ---------------------------------------------------------
+
+# ДЕТЕКТИВ — поддержка / контроль через исследование и голема
+# =========================================================
+
+# Подзорная труба используется только как кнопка способности.
+on right click holding spyglass:
+    if name of player's tool is "&bИсследование":
+        cancel event
+        if {char.%player%} is not "detective":
+            stop
+        if {round.active} is true:
+            if {round.live} is not true:
+                stop
+            if {alive.%player%} is not true:
+                stop
+        if {stunned.%player%} is true:
+            send "&cТы оглушён и не можешь использовать способности!" to player
+            stop
+        if {staggered.%player%} is true:
+            send "&eТы ошеломлён и не можешь использовать способности!" to player
+            stop
+        if tryCooldown(player, "detective_research", 45) is true:
+            # Один общий источник не позволяет нескольким срабатываниям этого баффа складываться.
+            set {_source} to "detective_research"
+            set {_affected} to 0
+            delete {_affectedPlayers::*}
+            loop all players:
+                set {_target} to loop-player
+                # Детектив не усиливает себя; убийца исключается и по роли, и по round.maniac.
+                if {_target} is not player:
+                    if {_target} is not {round.maniac}:
+                        if {char.%{_target}%} is set:
+                            if isManiac({char.%{_target}%}) is false:
+                                if {alive.%{_target}%} is true:
+                                    if distance between player and {_target} <= 5:
+                                        add 1 to {_affected}
+                                        add {_target} to {_affectedPlayers::*}
+                                        if {detective.research.%player%} < 12:
+                                            add 1 to {detective.research.%player%}
+                                        setCooldownModifier({_target}, {_source}, "all_except_detective", 1.5, 5)
+                                        send "&bДетектив ускорил восстановление твоих способностей на 5 секунд." to {_target}
+            send "&bИсследование завершено. Задето выживших: %{_affected}%. Очки исследования: %{detective.research.%player%}%/12." to player
+            awardXP(player, "detective", 20)
+            # Снимаем именно источник Детектива, не затрагивая другие модификаторы перезарядки.
+            wait 5 seconds
+            loop {_affectedPlayers::*}:
+                set {_target} to loop-value
+                # Если другой Детектив обновил общий бафф, не снимаем его раньше срока.
+                if {cd.modifier.until.%{_target}%.%{_source}%.all_except_detective} is set:
+                    if {cd.modifier.until.%{_target}%.%{_source}%.all_except_detective} <= now:
+                        delete {cd.modifier.until.%{_target}%.%{_source}%.all_except_detective}
+                        delete {cd.modifier.rate.%{_target}%.%{_source}%.all_except_detective}
+                        remove "all_except_detective" from {cd.modifierKeys.%{_target}%.%{_source}%::*}
+                        remove {_source} from {cd.modifierSources.%{_target}%::*}
+                        delete {cd.modifierKeys.%{_target}%.%{_source}%::*}
+
+# Железный слиток призывает единственного активного голема.
+on right click holding iron ingot:
+    if name of player's tool is "&7Призыв голема":
+        cancel event
+        if {char.%player%} is not "detective":
+            stop
+        if {round.active} is true:
+            if {round.live} is not true:
+                stop
+            if {alive.%player%} is not true:
+                stop
+        if {stunned.%player%} is true:
+            send "&cТы оглушён и не можешь использовать способности!" to player
+            stop
+        if {staggered.%player%} is true:
+            send "&eТы ошеломлён и не можешь использовать способности!" to player
+            stop
+        if {detective.research.%player%} < 3:
+            send "&cНужно минимум 3 очка исследования для призыва голема." to player
+            stop
+        if {detective.activeGolem} is set:
+            if {detective.activeGolem} is alive:
+                send "&cГолем уже существует. Дождись его исчезновения." to player
+                stop
+            delete {detective.activeGolem}
+        if tryCooldown(player, "detective_golem", 60) is true:
+            set {_research} to {detective.research.%player%}
+            set {_bonusSteps} to floor((({_research} - 3) / 3))
+            set {_golemHealth} to 7 + ({_bonusSteps} * 0.5)
+            spawn an iron golem at location of player
+            set {_golem} to last spawned entity
+            set max health of {_golem} to {_golemHealth}
+            set health of {_golem} to {_golemHealth}
+            set {detective.activeGolem} to {_golem}
+            set {detective.golemOwner.%{_golem}%} to player
+            set {detective.golemHealth.%{_golem}%} to {_golemHealth}
+            set {detective.research.%player%} to 0
+            if {round.maniac} is set:
+                set target of {_golem} to {round.maniac}
+            send "&bГолем призван! Здоровье: %{_golemHealth}% сердца. Очки исследования потрачены." to player
+            awardXP(player, "detective", 30)
+            wait 30 seconds
+            if {detective.activeGolem} is {_golem}:
+                if {_golem} is alive:
+                    kill {_golem}
+                delete {detective.activeGolem}
+                delete {detective.golemOwner.%{_golem}%}
+                delete {detective.golemHealth.%{_golem}%}
+                send "&7Голем исчез." to player
+
+# Голем целится только в убийцу. Его удары отталкивают, но не наносят урон.
+on entity target:
+    if event-entity is an iron golem:
+        if {detective.golemOwner.%event-entity%} is set:
+            if {round.maniac} is set:
+                set target of event-entity to {round.maniac}
+
+on damage:
+    # Удары голема не наносят урон: вместо этого убийца отталкивается.
+    if attacker is an iron golem:
+        if {detective.golemOwner.%attacker%} is set:
+            cancel event
+            if victim is a player:
+                if isManiac({char.%victim%}) is true:
+                    push victim away from attacker with speed 1.2
+    # Выжившие не могут случайно уничтожить собственного голема.
+    if victim is an iron golem:
+        if {detective.golemOwner.%victim%} is set:
+            if attacker is a player:
+                if isManiac({char.%attacker%}) is false:
+                    cancel event
+
+on death of an iron golem:
+    if {detective.golemOwner.%victim%} is set:
+        clear drops
+        if {detective.activeGolem} is victim:
+            delete {detective.activeGolem}
+        delete {detective.golemOwner.%victim%}
+        delete {detective.golemHealth.%victim%}

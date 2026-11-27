@@ -1,0 +1,109 @@
+# =========================================================
+# НЕКРОМАНСИК (id: necromancer) — убийца
+# Магический лук и связанные эффекты.
+# =========================================================
+
+# НЕКРОМАНСИК (убийца)
+# ---------------------------------------------------------
+
+on right click holding rotten flesh:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&5Зомби":
+        if {char.%player%} is "necromancer":
+            if {necro.zombies.%player%} > 0:
+                remove 1 from {necro.zombies.%player%}
+                spawn a zombie at location of player
+                set {_zombie} to last spawned entity
+                set helmet of {_zombie} to leather helmet
+                set {necroOwner.%{_zombie}%} to player
+                add {_zombie} to {necro.activeZombies::*}
+                send "&5Зомби призван! Осталось призывов: %{necro.zombies.%player%}%" to player
+                awardXP(player, "necromancer", 10)
+            else:
+                send "&cБольше нельзя призывать зомби в этом раунде." to player
+                cancel event
+
+on entity target:
+    if {necroOwner.%event-entity%} is set:
+        if target is {necroOwner.%event-entity%}:
+            cancel event
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if {necroOwner.%victim%} is set:
+        if attacker is a player:
+            cancel event
+
+# --- Луч Магического лука: рисуем частицами (фиолетовая пыль) вдоль взгляда игрока.
+#     Берём vanilla-координаты "^ ^ ^N" от глаз — так учитывается и yaw, и pitch. ---
+function necroBeam(p: player, len: number):
+    loop floor({_len}) times:
+        execute console command "/execute as %{_p}% at @s anchored eyes run particle minecraft:dust{color:[0.6,0.1,0.9],scale:1} ^ ^ ^%loop-number% 0 0 0 0 2 force"
+
+# Магический лук — мгновенный луч (как Крюк ДенДена: цель в прицеле, без стрелы).
+# Попал в выжившего (или манекен-выжившего) в радиусе {@necroBowRange} блоков —
+# Slowness II + подсветка на 3 сек. КД 20 сек тратится в любом случае (и при промахе).
+on right click holding blaze rod:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&5Магический лук":
+        if {char.%player%} is "necromancer":
+            cancel event
+            if tryCooldown(player, "necro_bow", 20) is true:
+                set {_target} to player's target entity
+                set {_hit} to false
+                if {_target} is a player:
+                    if isManiac({char.%{_target}%}) is false:
+                        if distance between player and {_target} <= {@necroBowRange}:
+                            set {_hit} to true
+                else if {dummy.kind.%{_target}%} is "survivor":
+                    if distance between player and {_target} <= {@necroBowRange}:
+                        set {_hit} to true
+                if {_hit} is true:
+                    set {_len} to distance between player and {_target}
+                    necroBeam(player, {_len})
+                    apply slowness 2 to {_target} for 5 seconds
+                    apply glowing to {_target} for 5 seconds
+                    send "&5Магический луч попал: замедление и подсветка на 5 сек!" to player
+                    if {_target} is a player:
+                        awardXP(player, "necromancer", 30)
+                    else:
+                        send "&5[DUMMY] Магический луч попал: замедление 2 на 3 сек + подсветка 3 сек." to {dummy.owner}
+                else:
+                    necroBeam(player, {@necroBowRange})
+                    send "&7Луч ушёл в пустоту." to player
+
+on right click holding feather:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&5Дыхание":
+        if {char.%player%} is "necromancer":
+            if tryCooldown(player, "necro_block", 35) is true:
+                set {blocking.%player%} to true
+                apply slowness 2 to player for 2 seconds
+                send "&5Ты затаил дыхание... выжившие рядом подсвечены!" to player
+                loop all players within 10 blocks of player:
+                    if loop-player is not player:
+                        if isManiac({char.%loop-player%}) is false:
+                            apply glowing to loop-player for 5 seconds
+                loop {dummy.list::*}:
+                    if {dummy.kind.%loop-value%} is "survivor":
+                        if distance between player and loop-value <= 10:
+                            apply glowing to loop-value for 5 seconds
+                awardXP(player, "necromancer", 10)
+                wait 2 seconds
+                delete {blocking.%player%}
+                wait 33 seconds
+                send "&a✔ Дыхание снова готово!" to player
+
+# ---------------------------------------------------------

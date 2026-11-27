@@ -1,0 +1,184 @@
+# =========================================================
+# THE ANOMALY (id: anomaly) — убийца
+# Пассивка Сталкера, луч, капканы и связанные эффекты.
+# =========================================================
+
+# --- Сталк Аномалии: слепота в радиусе 7 блоков при входе в тень и при выходе из неё ---
+function anomalyStalkBlind(p: player):
+    set {_hit} to 0
+    loop all players within 7 blocks of {_p}:
+        if loop-player is not {_p}:
+            if isManiac({char.%loop-player%}) is false:
+                apply blindness to loop-player for 3 seconds
+                add 1 to {_hit}
+    loop {dummy.list::*}:
+        if {dummy.kind.%loop-value%} is "survivor":
+            if distance between {_p} and loop-value <= 7:
+                apply blindness to loop-value for 3 seconds
+    if {_hit} > 0:
+        send "&5Тень ослепила выживших рядом!" to {_p}
+        awardXP({_p}, "anomaly", 10)
+
+# ---------------------------------------------------------
+# THE ANOMALY (маньяк, класс "Сталкер")
+# ---------------------------------------------------------
+
+# --- Луч «Не ожидал?»: красная пыль вдоль взгляда (как necroBeam, но другой цвет). ---
+function anomalyBeam(p: player, len: number):
+    loop floor({_len}) times:
+        execute console command "/execute as %{_p}% at @s anchored eyes run particle minecraft:dust{color:[0.9,0.05,0.05],scale:1} ^ ^ ^%loop-number% 0 0 0 0 2 force"
+
+on right click holding stick:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&cНе ожидал?":
+        if {char.%player%} is "anomaly":
+            cancel event
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if {anomaly.stalking.%player%} is true:
+                send "&cТы в тени и не можешь использовать способности!" to player
+                stop
+            if tryCooldown(player, "anomaly_arrow", 40) is true:
+                set {_target} to player's target entity
+                set {_hit} to false
+                if {_target} is a player:
+                    if isManiac({char.%{_target}%}) is false:
+                        if distance between player and {_target} <= {@anomalyBeamRange}:
+                            set {_hit} to true
+                else if {dummy.kind.%{_target}%} is "survivor":
+                    if distance between player and {_target} <= {@anomalyBeamRange}:
+                        set {_hit} to true
+                if {_hit} is true:
+                    anomalyBeam(player, distance between player and {_target})
+                    apply glowing to {_target} for 2 seconds
+                    send "&cЛуч попал: урон, слепота и свечение на 2 сек!" to player
+                    if {_target} is a player:
+                        apply blindness to {_target} for 2 seconds
+                        damage {_target} by 2
+                        awardXP(player, "anomaly", 30)
+                    else:
+                        send "&c[DUMMY] «Не ожидал?»: урон 2, слепота 2 сек, подсветка 2 сек." to {dummy.owner}
+                else:
+                    anomalyBeam(player, {@anomalyBeamRange})
+                    send "&7Луч ушёл в пустоту." to player
+                wait 40 seconds
+                send "&a✔ Способность снова готова!" to player
+
+# Защита до старта раунда: никаких выстрелов и урона, пока раунд не «живой».
+on shoot:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+
+on damage:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+
+on right click holding phantom membrane:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&5Сталк":
+        if {char.%player%} is "anomaly":
+            if {anomaly.stalking.%player%} is true:
+                delete {anomaly.stalking.%player%}
+                remove invisibility from player
+                anomalyStalkBlind(player)
+                apply slowness 5 to player for 2 seconds
+                send "&5Выходишь из тени..." to player
+                wait 2 seconds
+                send "&a✔ Снова можешь атаковать и использовать способности!" to player
+            else:
+                if {stunned.%player%} is true:
+                    send "&cТы оглушён и не можешь использовать способности!" to player
+                    stop
+                if {staggered.%player%} is true:
+                    send "&eТы ошеломлён и не можешь использовать способности!" to player
+                    stop
+                if tryCooldown(player, "anomaly_stalk", 60) is true:
+                    set {anomaly.stalking.%player%} to true
+                    apply invisibility to player for 30 seconds
+                    anomalyStalkBlind(player)
+                    send "&5Ты растворился в тенях..." to player
+                    wait 30 seconds
+                    if {anomaly.stalking.%player%} is true:
+                        delete {anomaly.stalking.%player%}
+                        anomalyStalkBlind(player)
+                        send "&a✔ Способность истекла, ты снова видим." to player
+on right click holding tripwire hook:
+    if {round.active} is true:
+        if {round.live} is not true:
+            cancel event
+            stop
+    if name of player's tool is "&cКапкан":
+        if {char.%player%} is "anomaly":
+            if {stunned.%player%} is true:
+                send "&cТы оглушён и не можешь использовать способности!" to player
+                stop
+            if {staggered.%player%} is true:
+                send "&eТы ошеломлён и не можешь использовать способности!" to player
+                stop
+            if {anomaly.stalking.%player%} is true:
+                send "&cТы в тени и не можешь использовать способности!" to player
+                stop
+            if tryCooldown(player, "anomaly_trap", 40) is true:
+                if size of {anomaly.traps.%player%::*} >= 3:
+                    set {_oldestIndex} to 999999
+                    loop {anomaly.traps.%player%::*}:
+                        if loop-index parsed as number < {_oldestIndex}:
+                            set {_oldestIndex} to loop-index parsed as number
+                    delete {anomaly.traps.%player%::%{_oldestIndex}%}
+                add location of player to {anomaly.traps.%player%::*}
+                send "&cКапкан установлен." to player
+                wait 40 seconds
+                send "&a✔ Капкан снова готов к установке!" to player
+
+every 5 ticks:
+    if {round.active} is true:
+        if {round.maniac} is set:
+            if {char.%{round.maniac}%} is "anomaly":
+                loop {anomaly.traps.%{round.maniac}%::*}:
+                    set {_trapIndex} to loop-index
+                    set {_trapLoc} to loop-value
+                    set {_triggered} to false
+                    loop all players:
+                        set {_s} to loop-player
+                        if isManiac({char.%{_s}%}) is false:
+                            if {alive.%{_s}%} is true:
+                                if distance between {_s} and {_trapLoc} < anomalyTrapRadius():
+                                    damage {_s} by 3
+                                    apply slowness 4 to {_s} for 4 seconds
+                                    maniacBoost({round.maniac}, 7, 1)
+                                    send "&cКапкан сработал на %{_s}%!" to {round.maniac}
+                                    send "&cТы попал в капкан!" to {_s}
+                                    awardXP({round.maniac}, "anomaly", 30)
+                                    set {_triggered} to true
+                    if {_triggered} is true:
+                        delete {anomaly.traps.%{round.maniac}%::%{_trapIndex}%}
+
+# --- Радиус срабатывания капкана Аномалии (общий для игроков и манекена, dummy.sk) ---
+function anomalyTrapRadius() :: number:
+    return 1.8
+
+# --- Лёгкий ориентир: тусклые красные частицы над каждым капканом ---
+every 10 ticks:
+    set {_o} to {round.maniac}
+    if {round.active} is not true:
+        set {_o} to {dummy.owner}
+    if {_o} is set:
+        loop {anomaly.traps.%{_o}%::*}:
+            set {_l} to loop-value
+            set {_y} to (y-coord of {_l}) + 0.1
+            execute console command "/particle minecraft:dust{color:[0.9,0.05,0.05],scale:0.8} %x-coord of {_l}% %{_y}% %z-coord of {_l}% 0.6 0.02 0.6 0 3"
+
+# ---------------------------------------------------------

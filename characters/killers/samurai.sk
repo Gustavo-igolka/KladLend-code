@@ -1,0 +1,332 @@
+# =========================================================
+# САМУРАИ (id: samurai) — убийца
+# Метка, Разрезание, Переключение и логика Блаженного.
+# =========================================================
+
+# САМУРАИ — подростки-копии клана, убийца с телом-помощником.
+# Предметы: бумага (Метка), железный топор (Разрезание),
+# эндер-жемчуг (Переключение). Каменный меч — обычный М1.
+# =========================================================
+
+function samuraiSpawnBlessed(p: player):
+    # Удаляем старое тело этого владельца, если оно осталось после теста.
+    loop {samurai.blessed::*}:
+        if {samurai.blessedOwner.%loop-value%} is {_p}:
+            kill loop-value
+            remove loop-value from {samurai.blessed::*}
+    spawn a zombie at location of {_p}
+    set {_z} to last spawned entity
+    set name of {_z} to "&dБлаженный"
+    set {samurai.blessedOwner.%{_z}%} to {_p}
+    add {_z} to {samurai.blessed::*}
+    send "&dБлаженный появился рядом с тобой." to {_p}
+
+function samuraiCanUse(p: player) :: boolean:
+    if {stunned.%{_p}%} is true:
+        send "&cТы оглушён и не можешь использовать способности!" to {_p}
+        return false
+    if {staggered.%{_p}%} is true:
+        send "&eТы ошеломлён и не можешь использовать способности!" to {_p}
+        return false
+    if {samurai.grabbing.%{_p}%} is true:
+        send "&cВо время Разрезания нельзя использовать способности." to {_p}
+        return false
+    if {samurai.grabbed.%{_p}%} is true:
+        send "&cТы не можешь действовать во время захвата." to {_p}
+        return false
+    if {samurai.switching.%{_p}%} is true:
+        send "&cПереключение ещё не завершено." to {_p}
+        return false
+    return true
+
+# Во время захвата и обмена позициями игроки не могут перемещаться.
+on player move:
+    if {samurai.grabbing.%player%} is true:
+        cancel event
+    if {samurai.grabbed.%player%} is true:
+        cancel event
+    if {samurai.switching.%player%} is true:
+        cancel event
+
+# Блокируем использование любых предметов участниками захвата/переключения.
+on right click:
+    if {samurai.grabbing.%player%} is true:
+        cancel event
+    if {samurai.grabbed.%player%} is true:
+        cancel event
+    if {samurai.switching.%player%} is true:
+        cancel event
+
+# Метка: выбранный игрок подсвечивается 15 сек; урон Самураев по нему +0,5.
+on right click holding paper:
+    if name of player's tool is "&cМетка":
+        if {char.%player%} is "samurai":
+            cancel event
+            if {round.active} is true:
+                if {round.live} is not true:
+                    stop
+            if samuraiCanUse(player) is false:
+                stop
+            set {_target} to player's target entity
+            if {_target} is not a player:
+                send "&7Наведи прицел на выжившего, чтобы поставить Метку." to player
+                stop
+            if isManiac({char.%{_target}%}) is true:
+                send "&7Метка ставится только на живого выжившего." to player
+                stop
+            if {alive.%{_target}%} is not true:
+                send "&7Метка ставится только на живого выжившего." to player
+                stop
+            if tryCooldown(player, "samurai_mark", 30) is true:
+                set {samurai.marked.%player%} to {_target}
+                set {_markToken} to now
+                set {samurai.markToken.%player%} to {_markToken}
+                apply glowing to {_target} for 15 seconds
+                send "&cМетка поставлена на %{_target}% на 15 секунд." to player
+                send "&cСамураи пометили тебя! Получаемый от них урон повышен." to {_target}
+                awardXP(player, "samurai", 20)
+                wait 15 seconds
+                if {samurai.markToken.%player%} is {_markToken}:
+                    delete {samurai.marked.%player%}
+                    delete {samurai.markToken.%player%}
+
+# Разрезание: ближайший выживший в пределах 3 блоков обездвиживается вместе с убийцей.
+on right click holding iron axe:
+    if name of player's tool is "&4Разрезание":
+        if {char.%player%} is "samurai":
+            cancel event
+            if {round.active} is true:
+                if {round.live} is not true:
+                    stop
+            if samuraiCanUse(player) is false:
+                stop
+            delete {_target}
+            set {_best} to 3.01
+            loop all players:
+                if loop-player is not player:
+                    if isManiac({char.%loop-player%}) is false:
+                        if {alive.%loop-player%} is true:
+                            if {stunned.%loop-player%} is not true:
+                                if {staggered.%loop-player%} is not true:
+                                    set {_d} to distance between player and loop-player
+                                    if {_d} <= 3:
+                                        if {_d} < {_best}:
+                                            set {_best} to {_d}
+                                            set {_target} to loop-player
+            if {_target} is not set:
+                if tryCooldown(player, "samurai_slash", 30) is true:
+                    send "&7Рядом нет выжившего для захвата (радиус 3 блока)." to player
+                stop
+            if tryCooldown(player, "samurai_slash", 30) is true:
+                set {_token} to now
+                set {samurai.grabbing.%player%} to true
+                set {samurai.grabbed.%{_target}%} to true
+                set {stunned.%player%} to true
+                set {staggered.%player%} to true
+                set {stunned.%{_target}%} to true
+                set {staggered.%{_target}%} to true
+                set {samurai.grabTarget.%player%} to {_target}
+                set {samurai.grabToken.%player%} to {_token}
+                send "&4Ты схватил %{_target}%! Удерживай его 6 секунд." to player
+                send "&cСамураи схватили тебя! Ты обездвижен на 6 секунд." to {_target}
+                wait 6 seconds
+                if {samurai.grabToken.%player%} is {_token}:
+                    if {samurai.grabbing.%player%} is true:
+                        if {_target} is online:
+                            if {alive.%{_target}%} is true:
+                                delete {samurai.grabbing.%player%}
+                                delete {samurai.grabbed.%{_target}%}
+                                delete {stunned.%player%}
+                                delete {staggered.%player%}
+                                delete {stunned.%{_target}%}
+                                delete {staggered.%{_target}%}
+                                delete {samurai.grabTarget.%player%}
+                                delete {samurai.grabToken.%player%}
+                                set {_kickDamage} to 4
+                                if {samurai.marked.%player%} is {_target}:
+                                    add 0.5 to {_kickDamage}
+                                damage {_target} by {_kickDamage}
+                                push {_target} away from player with speed 1
+                                send "&4Разрезание завершено: цель получила 4 урона." to player
+                                awardXP(player, "samurai", 35)
+                            else:
+                                delete {samurai.grabbing.%player%}
+                                delete {samurai.grabbed.%{_target}%}
+                                delete {stunned.%player%}
+                                delete {staggered.%player%}
+                                delete {stunned.%{_target}%}
+                                delete {staggered.%{_target}%}
+                                delete {samurai.grabTarget.%player%}
+                                delete {samurai.grabToken.%player%}
+                        else:
+                            delete {samurai.grabbing.%player%}
+                            delete {samurai.grabbed.%{_target}%}
+                            delete {stunned.%player%}
+                            delete {staggered.%player%}
+                            delete {stunned.%{_target}%}
+                            delete {staggered.%{_target}%}
+                            delete {samurai.grabTarget.%player%}
+                            delete {samurai.grabToken.%player%}
+
+# Переключение: 3 секунды неподвижности, затем обмен позициями с Блаженным.
+# После обмена — 6 секунд иммунитета к оглушению. КД принят равным 30 секундам.
+on right click holding ender pearl:
+    if name of player's tool is "&5Переключение":
+        if {char.%player%} is "samurai":
+            cancel event
+            if {round.active} is true:
+                if {round.live} is not true:
+                    stop
+            if samuraiCanUse(player) is false:
+                stop
+            delete {_blessed}
+            loop {samurai.blessed::*}:
+                if {samurai.blessedOwner.%loop-value%} is player:
+                    if loop-value is alive:
+                        set {_blessed} to loop-value
+            if {_blessed} is not set:
+                send "&cБлаженный недоступен — переключение невозможно." to player
+                stop
+            if tryCooldown(player, "samurai_switch", 30) is true:
+                set {_token} to now
+                set {samurai.switching.%player%} to true
+                set {samurai.switchToken.%player%} to {_token}
+                set {_playerLoc} to location of player
+                set {_blessedLoc} to location of {_blessed}
+                apply slowness 255 to player for 3 seconds
+                apply slowness 255 to {_blessed} for 3 seconds
+                send "&5Начинается переключение..." to player
+                wait 3 seconds
+                if {samurai.switchToken.%player%} is {_token}:
+                    if {samurai.switching.%player%} is true:
+                        if {_blessed} is alive:
+                            teleport player to {_blessedLoc}
+                            teleport {_blessed} to {_playerLoc}
+                            delete {samurai.switching.%player%}
+                            delete {samurai.switchToken.%player%}
+                            set {samurai.stunImmune.%player%} to true
+                            send "&5Позиции обменены. Иммунитет к оглушению: 6 секунд." to player
+                            awardXP(player, "samurai", 20)
+                            wait 6 seconds
+                            delete {samurai.stunImmune.%player%}
+                        else:
+                            delete {samurai.switching.%player%}
+                            delete {samurai.switchToken.%player%}
+
+# Блаженный автономно выбирает ближайшего живого выжившего и атакует его.
+every 1 second:
+    if {round.active} is true:
+        if {round.live} is true:
+            loop {samurai.blessed::*}:
+                set {_z} to loop-value
+                if {_z} is not alive:
+                    remove {_z} from {samurai.blessed::*}
+                    delete {samurai.blessedOwner.%{_z}%}
+                    delete {samurai.blessedStunnedUntil.%{_z}%}
+                else:
+                    set {_owner} to {samurai.blessedOwner.%{_z}%}
+                    if {_owner} is online:
+                        if {samurai.blessedStunnedUntil.%{_z}%} is set:
+                            if {samurai.blessedStunnedUntil.%{_z}%} > now:
+                                set target of {_z} to {_owner}
+                            else:
+                                delete {samurai.blessedStunnedUntil.%{_z}%}
+                        else:
+                            set {_closest} to 9999
+                            delete {_target}
+                            loop all players:
+                                if loop-player is not {_owner}:
+                                    if isManiac({char.%loop-player%}) is false:
+                                        if {alive.%loop-player%} is true:
+                                            set {_d} to distance between {_z} and loop-player
+                                            if {_d} < {_closest}:
+                                                set {_closest} to {_d}
+                                                set {_target} to loop-player
+                            if {_target} is set:
+                                set target of {_z} to {_target}
+                            else:
+                                set target of {_z} to {_owner}
+
+# Блаженный бессмертен, но удар живого выжившего временно оглушает его на 3 секунды.
+on damage:
+    if victim is a zombie:
+        if {samurai.blessedOwner.%victim%} is set:
+            cancel event
+            if {round.active} is true:
+                if {round.live} is not true:
+                    stop
+            if attacker is a player:
+                if isManiac({char.%attacker%}) is false:
+                    set {samurai.blessedStunnedUntil.%victim%} to now + 3 seconds
+                    set target of victim to {samurai.blessedOwner.%victim%}
+                    apply slowness 255 to victim for 3 seconds
+                    send "&eБлаженный оглушён на 3 секунды!" to attacker
+
+# Блаженный не должен переключать агрессию на другого убийцу.
+on entity target:
+    if {samurai.blessedOwner.%event-entity%} is set:
+        if target is a player:
+            if isManiac({char.%target%}) is true:
+                cancel event
+
+# Метка усиливает весь урон Самураев по помеченной цели, включая удары Блаженного.
+on damage:
+    if victim is a player:
+        if attacker is a player:
+            if {char.%attacker%} is "samurai":
+                if {samurai.marked.%attacker%} is victim:
+                    increase damage by 0.5
+        else if attacker is a zombie:
+            set {_owner} to {samurai.blessedOwner.%attacker%}
+            if {_owner} is set:
+                if {samurai.marked.%{_owner}%} is victim:
+                    increase damage by 0.5
+
+# Смерть/выход любой стороны немедленно прерывает захват.
+on death of a player:
+    if {samurai.grabbed.%victim%} is true:
+        delete {_owner}
+        loop all players:
+            if {samurai.grabTarget.%loop-player%} is victim:
+                set {_owner} to loop-player
+        if {_owner} is set:
+            delete {samurai.grabbing.%{_owner}%}
+            delete {stunned.%{_owner}%}
+            delete {staggered.%{_owner}%}
+            delete {samurai.grabTarget.%{_owner}%}
+            delete {samurai.grabToken.%{_owner}%}
+        delete {samurai.grabbed.%victim%}
+        delete {stunned.%victim%}
+        delete {staggered.%victim%}
+    if {samurai.grabbing.%victim%} is true:
+        set {_target} to {samurai.grabTarget.%victim%}
+        delete {samurai.grabbed.%{_target}%}
+        delete {stunned.%{_target}%}
+        delete {staggered.%{_target}%}
+        delete {samurai.grabbing.%victim%}
+        delete {samurai.grabTarget.%victim%}
+        delete {samurai.grabToken.%victim%}
+
+on quit:
+    if {samurai.grabbed.%player%} is true:
+        loop all players:
+            if {samurai.grabTarget.%loop-player%} is player:
+                delete {samurai.grabbing.%loop-player%}
+                delete {stunned.%loop-player%}
+                delete {staggered.%loop-player%}
+                delete {samurai.grabTarget.%loop-player%}
+                delete {samurai.grabToken.%loop-player%}
+        delete {samurai.grabbed.%player%}
+        delete {stunned.%player%}
+        delete {staggered.%player%}
+    if {samurai.grabbing.%player%} is true:
+        set {_target} to {samurai.grabTarget.%player%}
+        delete {samurai.grabbed.%{_target}%}
+        delete {stunned.%{_target}%}
+        delete {staggered.%{_target}%}
+        delete {samurai.grabbing.%player%}
+        delete {samurai.grabTarget.%player%}
+        delete {samurai.grabToken.%player%}
+
+
+# =========================================================
