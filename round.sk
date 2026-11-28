@@ -315,9 +315,11 @@ command /startround <text>:
                 if {killer.disabled.%{_p}%} is not true:
                     set {_hasPref} to false
                     if {char.maniacPref.%{_p}%} is set:
-                        set {_hasPref} to true
-                    else if {char.survivorPref.%{_p}%} is set:
-                        set {_hasPref} to true
+                        if isCharacterOwned({_p}, {char.maniacPref.%{_p}%}) is true:
+                            set {_hasPref} to true
+                    if {char.survivorPref.%{_p}%} is set:
+                        if isCharacterOwned({_p}, {char.survivorPref.%{_p}%}) is true:
+                            set {_hasPref} to true
                     if {_hasPref} is true:
                         set {_a} to 0
                         if {anger.%{_p}%} is set:
@@ -374,7 +376,8 @@ command /startround <text>:
 
         set {_killerChar} to "denden"
         if {char.maniacPref.%{_killer}%} is set:
-            set {_killerChar} to {char.maniacPref.%{_killer}%}
+            if isCharacterOwned({_killer}, {char.maniacPref.%{_killer}%}) is true:
+                set {_killerChar} to {char.maniacPref.%{_killer}%}
         set {char.%{_killer}%} to {_killerChar}
         set {anger.%{_killer}%} to 0
 
@@ -384,13 +387,16 @@ command /startround <text>:
                 if {_p} is not {_killer}:
                     set {_hasPref2} to false
                     if {char.maniacPref.%{_p}%} is set:
-                        set {_hasPref2} to true
-                    else if {char.survivorPref.%{_p}%} is set:
-                        set {_hasPref2} to true
+                        if isCharacterOwned({_p}, {char.maniacPref.%{_p}%}) is true:
+                            set {_hasPref2} to true
+                    if {char.survivorPref.%{_p}%} is set:
+                        if isCharacterOwned({_p}, {char.survivorPref.%{_p}%}) is true:
+                            set {_hasPref2} to true
                     if {_hasPref2} is true:
                         set {_sChar} to "andrey"
                         if {char.survivorPref.%{_p}%} is set:
-                            set {_sChar} to {char.survivorPref.%{_p}%}
+                            if isCharacterOwned({_p}, {char.survivorPref.%{_p}%}) is true:
+                                set {_sChar} to {char.survivorPref.%{_p}%}
                         set {char.%{_p}%} to {_sChar}
 
         set {round.participantCount} to 0

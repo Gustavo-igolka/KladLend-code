@@ -48,35 +48,120 @@ function getCharDisplayName(charid: text) :: text:
     else:
         return {_charid}
 
+# Цена персонажа. Нулевая стоимость означает постоянный бесплатный доступ.
+function getCharacterPrice(charid: text) :: number:
+    if {_charid} is "anomaly":
+        return 999
+    else if {_charid} is "project":
+        return 1100
+    else if {_charid} is "blind":
+        return 1250
+    else if {_charid} is "samurai":
+        return 1300
+    else if {_charid} is "max":
+        return 1467
+    else if {_charid} is "ilya":
+        return 500
+    else if {_charid} is "hacker":
+        return 500
+    else if {_charid} is "thomas":
+        return 600
+    else if {_charid} is "mayor":
+        return 610
+    else if {_charid} is "sanya":
+        return 500
+    else if {_charid} is "kirill":
+        return 650
+    else if {_charid} is "dartikil":
+        return 777
+    else if {_charid} is "detective":
+        return 650
+    return 0
+
+# Владение хранится отдельно от предпочтения персонажа и сохраняется между перезапусками.
+function isCharacterOwned(p: player, charid: text) :: boolean:
+    set {_price} to getCharacterPrice({_charid})
+    if {_price} <= 0:
+        return true
+    if {character.owned.%{_p}%.%{_charid}%} is true:
+        return true
+    return false
+
+function getCharacterMenuLabel(p: player, charid: text) :: text:
+    set {_name} to getCharDisplayName({_charid})
+    set {_price} to getCharacterPrice({_charid})
+    if {_price} <= 0:
+        return "&a%{_name}% &7[Бесплатно]"
+    if isCharacterOwned({_p}, {_charid}) is true:
+        return "&a%{_name}% &7[Куплен]"
+    return "&c%{_name}% &7[%{_price}% монет]"
+
+# Покупка и выбор выполняются одним нажатием в меню.
+function chooseCharacter(p: player, role: text, charid: text):
+    set {_price} to getCharacterPrice({_charid})
+    if isCharacterOwned({_p}, {_charid}) is false:
+        set {_balance} to getMoney({_p})
+        if {_balance} < {_price}:
+            send "&cНедостаточно монет! Нужно: %{_price}%, у тебя: %{_balance}%." to {_p}
+            stop
+        if {money.%{_p}%} is not set:
+            set {money.%{_p}%} to 0
+        remove {_price} from {money.%{_p}%}
+        set {character.owned.%{_p}%.%{_charid}%} to true
+        send "&aПерсонаж %getCharDisplayName({_charid})% куплен за %{_price}% монет!" to {_p}
+
+    if {_role} is "maniac":
+        set {char.maniacPref.%{_p}%} to {_charid}
+        send "&aПредпочтение убийцы сохранено: %getCharDisplayName({_charid})%. Персонаж будет выдан при старте раунда." to {_p}
+    else:
+        set {char.survivorPref.%{_p}%} to {_charid}
+        send "&aПредпочтение выжившего сохранено: %getCharDisplayName({_charid})%. Персонаж будет выдан при старте раунда." to {_p}
+    close {_p}'s inventory
+
 function openManiacChoiceMenu(p: player):
     set {_inv} to a new chest inventory with 1 row named "&4Убийца (предпочтение)"
-    set slot 3 of {_inv} to stone sword named "&cДэнДэн"
-    set slot 5 of {_inv} to bow named "&5Некромансик"
-    set slot 7 of {_inv} to trident named "&cАномалия"
-    set slot 1 of {_inv} to iron axe named "&8The Project"
-    set slot 4 of {_inv} to fermented spider eye named "&2Незрячий"
-    set slot 2 of {_inv} to stone sword named "&cСамураи"
-    set slot 6 of {_inv} to netherite sword named "&cМакс"
+    set {_label} to getCharacterMenuLabel({_p}, "denden")
+    set slot 0 of {_inv} to stone sword named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "necromancer")
+    set slot 1 of {_inv} to bow named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "anomaly")
+    set slot 2 of {_inv} to trident named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "project")
+    set slot 3 of {_inv} to iron axe named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "blind")
+    set slot 4 of {_inv} to fermented spider eye named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "samurai")
+    set slot 5 of {_inv} to stone sword named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "max")
+    set slot 6 of {_inv} to netherite sword named "%{_label}%"
     set {choose.inv.%{_p}%} to {_inv}
     set {choose.role.%{_p}%} to "maniac"
     open {_inv} to {_p}
 
 function openSurvivorChoiceMenu(p: player):
     set {_inv} to a new chest inventory with 2 rows named "&aВыживший (предпочтение)"
-    # --- Рашеры ---
-    set slot 0 of {_inv} to bow named "&aАндрей"
-    set slot 1 of {_inv} to clock named "&bРататуй"
-    set slot 2 of {_inv} to leather named "&aКирилл"
-    # --- Стражи ---
-    set slot 3 of {_inv} to iron sword named "&9Михуилонг"
-    set slot 4 of {_inv} to wooden sword named "&fИлья"
-    set slot 5 of {_inv} to golden sword named "&7Маёр"
-    set slot 12 of {_inv} to crossbow named "&6Dartikil"
-    set slot 13 of {_inv} to spyglass named "&bДетектив"
-    # --- Поддержка ---
-    set slot 7 of {_inv} to sugar named "&dМякШмяка"
-    set slot 8 of {_inv} to bow named "&bТомас"
-    set slot 6 of {_inv} to iron nugget named "&2Саня"
+    set {_label} to getCharacterMenuLabel({_p}, "andrey")
+    set slot 0 of {_inv} to bow named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "alexey")
+    set slot 1 of {_inv} to sugar named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "mihuilong")
+    set slot 2 of {_inv} to iron sword named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "ilya")
+    set slot 3 of {_inv} to wooden sword named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "hacker")
+    set slot 4 of {_inv} to clock named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "thomas")
+    set slot 5 of {_inv} to bow named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "mayor")
+    set slot 6 of {_inv} to golden sword named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "sanya")
+    set slot 7 of {_inv} to iron nugget named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "kirill")
+    set slot 8 of {_inv} to leather named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "dartikil")
+    set slot 9 of {_inv} to crossbow named "%{_label}%"
+    set {_label} to getCharacterMenuLabel({_p}, "detective")
+    set slot 10 of {_inv} to spyglass named "%{_label}%"
     set {choose.inv.%{_p}%} to {_inv}
     set {choose.role.%{_p}%} to "survivor"
     open {_inv} to {_p}
@@ -94,54 +179,51 @@ on inventory click:
         if event-inventory is {choose.inv.%player%}:
             cancel event
             if {choose.role.%player%} is "maniac":
-                if clicked slot is 3:
-                    set {char.maniacPref.%player%} to "denden"
-                else if clicked slot is 5:
-                    set {char.maniacPref.%player%} to "necromancer"
-                else if clicked slot is 7:
-                    set {char.maniacPref.%player%} to "anomaly"
+                if clicked slot is 0:
+                    chooseCharacter(player, "maniac", "denden")
                 else if clicked slot is 1:
-                    set {char.maniacPref.%player%} to "project"
-                else if clicked slot is 4:
-                    set {char.maniacPref.%player%} to "blind"
+                    chooseCharacter(player, "maniac", "necromancer")
                 else if clicked slot is 2:
-                    set {char.maniacPref.%player%} to "samurai"
+                    chooseCharacter(player, "maniac", "anomaly")
+                else if clicked slot is 3:
+                    chooseCharacter(player, "maniac", "project")
+                else if clicked slot is 4:
+                    chooseCharacter(player, "maniac", "blind")
+                else if clicked slot is 5:
+                    chooseCharacter(player, "maniac", "samurai")
                 else if clicked slot is 6:
-                    set {char.maniacPref.%player%} to "max"
-                else:
-                    stop
-                close player's inventory
-                send "&aПредпочтение убийцы сохранено: %getCharDisplayName({char.maniacPref.%player%})%. Персонаж будет выдан при старте раунда." to player
+                    chooseCharacter(player, "maniac", "max")
                 stop
             else if {choose.role.%player%} is "survivor":
                 if clicked slot is 0:
-                    set {char.survivorPref.%player%} to "andrey"
+                    chooseCharacter(player, "survivor", "andrey")
                 else if clicked slot is 1:
-                    set {char.survivorPref.%player%} to "hacker"
+                    chooseCharacter(player, "survivor", "alexey")
                 else if clicked slot is 2:
-                    set {char.survivorPref.%player%} to "kirill"
+                    chooseCharacter(player, "survivor", "mihuilong")
                 else if clicked slot is 3:
-                    set {char.survivorPref.%player%} to "mihuilong"
+                    chooseCharacter(player, "survivor", "ilya")
                 else if clicked slot is 4:
-                    set {char.survivorPref.%player%} to "ilya"
+                    chooseCharacter(player, "survivor", "hacker")
                 else if clicked slot is 5:
-                    set {char.survivorPref.%player%} to "mayor"
-                else if clicked slot is 7:
-                    set {char.survivorPref.%player%} to "alexey"
-                else if clicked slot is 8:
-                    set {char.survivorPref.%player%} to "thomas"
+                    chooseCharacter(player, "survivor", "thomas")
                 else if clicked slot is 6:
-                    set {char.survivorPref.%player%} to "sanya"
-                else if clicked slot is 12:
-                    set {char.survivorPref.%player%} to "dartikil"
-                else if clicked slot is 13:
-                    set {char.survivorPref.%player%} to "detective"
-                else:
-                    stop
-                close player's inventory
-                send "&aПредпочтение выжившего сохранено: %getCharDisplayName({char.survivorPref.%player%})%. Персонаж будет выдан при старте раунда." to player
-            else:
+                    chooseCharacter(player, "survivor", "mayor")
+                else if clicked slot is 7:
+                    chooseCharacter(player, "survivor", "sanya")
+                else if clicked slot is 8:
+                    chooseCharacter(player, "survivor", "kirill")
+                else if clicked slot is 9:
+                    chooseCharacter(player, "survivor", "dartikil")
+                else if clicked slot is 10:
+                    chooseCharacter(player, "survivor", "detective")
                 stop
+
+on inventory close:
+    if {choose.inv.%player%} is set:
+        if event-inventory is {choose.inv.%player%}:
+            delete {choose.inv.%player%}
+            delete {choose.role.%player%}
 
 # --- Функции выдачи стартового набора ---
 function give_denden_kit(p: player):
