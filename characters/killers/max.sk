@@ -7,6 +7,7 @@ function maxClearState(p: player):
     loop {max.captured.%{_p}%::*}:
         delete {max.captured.%loop-value%}
     delete {max.locked.%{_p}%}
+    delete {max.volynaActive.%{_p}%}
     delete {max.running.%{_p}%}
     delete {max.interrupted.%{_p}%}
     delete {max.captured.%{_p}%::*}
@@ -66,7 +67,7 @@ function maxFireVolyna(p: player):
     loop 60 times:
         if {_p} is not online:
             stop loop
-        if {max.locked.%{_p}%} is not true:
+        if {max.volynaActive.%{_p}%} is not true:
             stop loop
         if {round.active} is true:
             if {round.live} is not true:
@@ -155,7 +156,13 @@ on right click holding crossbow:
                     loop all players:
                         if distance between player and loop-player <= 25:
                             execute console command "playsound minecraft:item.crossbow.shoot master %loop-player%"
+                    delete {max.locked.%player%}
+                    delete {max.interrupted.%player%}
+                    set walk speed of player to 0.2
+                    set {max.volynaActive.%player%} to true
                     maxFireVolyna(player)
+                    delete {max.volynaActive.%player%}
+                    stop
             delete {max.locked.%player%}
             delete {max.interrupted.%player%}
             if {stunned.%player%} is not true:
@@ -362,6 +369,7 @@ on quit:
             delete {max.captured.%loop-value%}
         delete {max.captured.%player%::*}
         delete {max.locked.%player%}
+        delete {max.volynaActive.%player%}
         delete {max.running.%player%}
         delete {max.interrupted.%player%}
 
