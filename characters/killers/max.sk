@@ -64,6 +64,10 @@ function maxFireVolyna(p: player):
     set {_dx} to sin({_yaw}) * -1
     set {_dz} to cos({_yaw})
     loop 60 times:
+        if {_p} is not online:
+            stop loop
+        if {max.locked.%{_p}%} is not true:
+            stop loop
         if {round.active} is true:
             if {round.live} is not true:
                 stop loop
@@ -183,6 +187,12 @@ function maxRunExcalibur(p: player):
     set {_yaw} to yaw of location of {_p}
     set {_result} to "timer"
     loop 70 times:
+        if {_p} is not online:
+            set {_result} to "stun"
+            stop loop
+        if {max.running.%{_p}%} is not true:
+            set {_result} to "stun"
+            stop loop
         if {max.interrupted.%{_p}%} is true:
             set {_result} to "stun"
             stop loop
@@ -345,6 +355,15 @@ on right click holding fire charge:
                         send "&c[DUMMY] Манекен подожжён Пламенем." to {dummy.owner}
             awardXP(player, "max", 10)
             send "&c&lПЛАМЯ! &7Поражено целей: %{_count}%." to player
+
+on quit:
+    if {char.%player%} is "max":
+        loop {max.captured.%player%::*}:
+            delete {max.captured.%loop-value%}
+        delete {max.captured.%player%::*}
+        delete {max.locked.%player%}
+        delete {max.running.%player%}
+        delete {max.interrupted.%player%}
 
 every 2 ticks:
     loop all players:
