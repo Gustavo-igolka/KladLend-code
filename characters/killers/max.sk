@@ -47,6 +47,12 @@ every 5 ticks:
                                 set {max.passiveGlow.%{_p}%.%{_s}%} to true
                             else:
                                 delete {max.passiveGlow.%{_p}%.%{_s}%}
+                    loop {dummy.list::*}:
+                        set {_d} to loop-value
+                        if {dummy.kind.%{_d}%} is "survivor":
+                            if distance between {_p} and {_d} <= 4:
+                                if {_d} does not have a potion effect of glowing:
+                                    apply glowing to {_d} for 1 second
 
 # =========================================================
 # Волына — КД 40 сек. Прострел 3×3×1, 10 блоков/сек, дальность 30.
@@ -65,6 +71,7 @@ function maxFireVolyna(p: player):
         set {_cx} to (x-coordinate of {_base}) + {_dx} * (1 + {_step})
         set {_cz} to (z-coordinate of {_base}) + {_dz} * (1 + {_step})
         set {_cy} to y-coordinate of {_base}
+        execute console command "particle minecraft:crit %{_cx}% %{_cy}% %{_cz}% 0 0 0 0 1 normal"
         loop all players:
             set {_s} to loop-player
             if maxValidTarget({_p}, {_s}) is true:
@@ -135,6 +142,7 @@ on right click holding crossbow:
                     execute console command "playsound minecraft:item.crossbow.loading_start master %loop-player%"
             loop 30 times:
                 wait 2 ticks
+                execute console command "execute at %player% run particle minecraft:smoke ~ ~1 ~ 0.2 0.2 0.2 0.01 3 normal"
                 if {max.interrupted.%player%} is true:
                     stop loop
             if {max.interrupted.%player%} is not true:

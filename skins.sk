@@ -150,7 +150,7 @@ function getChaseDuration(p: player, charid: text) :: number:
 function stopChaseMusic(p: player):
     if {chase.activeSound} is set:
         execute console command "/stopsound %{_p}% * %{chase.activeSound}%"
-    set {_ids::*} to "denden", "necromancer", "anomaly", "project", "blind" and "samurai"
+    set {_ids::*} to "denden", "necromancer", "anomaly", "project", "blind", "samurai" and "max"
     loop {_ids::*}:
         if {chase.sound.%loop-value%} is set:
             execute console command "/stopsound %{_p}% * %{chase.sound.%loop-value%}%"
