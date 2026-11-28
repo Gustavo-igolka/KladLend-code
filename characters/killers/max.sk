@@ -239,7 +239,14 @@ function maxRunExcalibur(p: player):
         set {_next} to location({_nx}, {_ny}, {_nz}, {_w})
         set {_lowCheck} to location({_nx}, {_ny} + 0.6, {_nz}, {_w})
         set {_highCheck} to location({_nx}, {_ny} + 1.6, {_nz}, {_w})
-        if block at {_lowCheck} is not passable or block at {_highCheck} is not passable:
+        set {_blocked} to false
+        if block at {_lowCheck} is not passable:
+            if block at {_lowCheck} is not ladder:
+                if block at {_lowCheck} is not snow:
+                    set {_blocked} to true
+        if block at {_highCheck} is not passable:
+            set {_blocked} to true
+        if {_blocked} is true:
             set {_result} to "wall"
             stop loop
         teleport {_p} to {_next}
