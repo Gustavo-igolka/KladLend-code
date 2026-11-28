@@ -26,8 +26,6 @@ function maxValidTarget(p: player, s: player) :: boolean:
         return false
     if {locker.%{_s}%} is set:
         return false
-    if {_s} has a potion effect of invisibility:
-        return false
     return true
 
 # Пассивка: обновляем свечение короткими импульсами. Уже подсвеченные
@@ -42,9 +40,10 @@ every 5 ticks:
                         set {_s} to loop-player-2
                         if maxValidTarget({_p}, {_s}) is true:
                             if distance between {_p} and {_s} <= 4:
-                                if {max.flameUntil.%{_s}%} is not set:
-                                    if {_s} does not have a potion effect of glowing:
-                                        apply glowing to {_s} for 1 second
+                                if {_s} does not have a potion effect of invisibility:
+                                    if {max.flameUntil.%{_s}%} is not set:
+                                        if {_s} does not have a potion effect of glowing:
+                                            apply glowing to {_s} for 1 second
                                 set {max.passiveGlow.%{_p}%.%{_s}%} to true
                             else:
                                 delete {max.passiveGlow.%{_p}%.%{_s}%}
@@ -59,10 +58,9 @@ function maxFireVolyna(p: player):
     set {_dx} to sin({_yaw}) * -1
     set {_dz} to cos({_yaw})
     loop 60 times:
-        if {round.active} is not true:
-            stop loop
-        if {round.live} is not true:
-            stop loop
+        if {round.active} is true:
+            if {round.live} is not true:
+                stop loop
         set {_step} to loop-number * 0.5
         set {_cx} to (x-coordinate of {_base}) + {_dx} * (1 + {_step})
         set {_cz} to (z-coordinate of {_base}) + {_dz} * (1 + {_step})
@@ -86,6 +84,8 @@ function maxFireVolyna(p: player):
                                             set {_dmg} to 4
                                         set {_blocked} to false
                                         if {andrey.invincible.%{_s}%} is true:
+                                            set {_blocked} to true
+                                        if {mayor.parrying.%{_s}%} is true:
                                             set {_blocked} to true
                                         damage {_s} by {_dmg}
                                         apply glowing to {_s} for 6 seconds
@@ -171,6 +171,7 @@ function maxReleaseCaptured(p: player, result: text):
 
 function maxRunExcalibur(p: player):
     set {max.running.%{_p}%} to true
+    set {_baseY} to y-coordinate of {_p}
     set {_yaw} to yaw of location of {_p}
     set {_result} to "timer"
     loop 70 times:
@@ -180,6 +181,10 @@ function maxRunExcalibur(p: player):
         if {stunned.%{_p}%} is true:
             set {_result} to "stun"
             stop loop
+        if {round.active} is true:
+            if {round.live} is not true:
+                set {_result} to "stun"
+                stop loop
         set {_look} to yaw of location of {_p}
         set {_diff} to {_look} - {_yaw}
         while {_diff} > 180:
@@ -197,7 +202,7 @@ function maxRunExcalibur(p: player):
         set {_from} to location of {_p}
         set {_nx} to (x-coordinate of {_from}) + ({_dx} * 0.7)
         set {_nz} to (z-coordinate of {_from}) + ({_dz} * 0.7)
-        set {_ny} to y-coordinate of {_from}
+        set {_ny} to {_baseY}
         set {_w} to world of {_from}
         set {_next} to location({_nx}, {_ny}, {_nz}, {_w})
         set {_lowCheck} to location({_nx}, {_ny} + 0.6, {_nz}, {_w})
@@ -315,12 +320,13 @@ on right click holding fire charge:
             loop all players:
                 set {_s} to loop-player
                 if maxValidTarget(player, {_s}) is true:
-                    if {_s} has a potion effect of glowing:
-                        remove glowing from {_s}
-                        set fire ticks of {_s} to 60
-                        set {max.flameUntil.%{_s}%} to now + 3 seconds
-                        add 1 to {_count}
-                        awardXP(player, "max", 30)
+                    if {_s} does not have a potion effect of invisibility:
+                        if {_s} has a potion effect of glowing:
+                            remove glowing from {_s}
+                            set fire ticks of {_s} to 60
+                            set {max.flameUntil.%{_s}%} to now + 3 seconds
+                            add 1 to {_count}
+                            awardXP(player, "max", 30)
             loop {dummy.list::*}:
                 set {_d} to loop-value
                 if {dummy.kind.%{_d}%} is "survivor":
