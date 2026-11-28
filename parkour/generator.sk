@@ -23,8 +23,8 @@ function parkourGenerate(p: player, parkourId: text, slot: number):
     # в список конкретной сессии и удаляются при её завершении.
     loop 23 times:
         set {_yy} to {_floorY} + loop-number
-        loop 31 times:
-            set {_offset} to loop-number - 16
+        loop integers from -15 to 15:
+            set {_offset} to loop-value
 
             set {_loc} to location at ({_baseX} - 15), {_yy}, ({_baseZ} + {_offset}) in {_world}
             set block at {_loc} to glass
@@ -44,8 +44,8 @@ function parkourGenerate(p: player, parkourId: text, slot: number):
 
     # Маршрут из 40 платформ. Соседние платформы разделены
     # коротким промежутком; высота меняется максимум на один блок.
-    set {_xs::*} to -12, -8, -4, 0, 4, 8, 12, 12, 12, 12, 12, 12, 12, 8, 4, 0, -4, -8, -12, -12, -12, -12, -12, -12, -8, -4, 0, 4, 8, 8, 8, 8, 4, 0, -4, -4, 0, 4, 4, 0
-    set {_zs::*} to -12, -12, -12, -12, -12, -12, -12, -8, -4, 0, 4, 8, 12, 12, 12, 12, 12, 12, 12, 8, 4, 0, -4, -8, -8, -8, -8, -8, -8, -4, 0, 4, 4, 4, 4, 0, 0, 0, -4, -4
+    set {_xs::*} to -12, -8, -4, 0, 4, 8, 12, 12, 12, 12, 12, 12, 12, 8, 4, 0, -4, -8, -12, -12, -12, -12, -12, -12, -8, -4, 0, 4, 8, 8, 8, 8, 4, 0, -4, -4, 0, 4 and 0
+    set {_zs::*} to -12, -12, -12, -12, -12, -12, -12, -8, -4, 0, 4, 8, 12, 12, 12, 12, 12, 12, 12, 8, 4, 0, -4, -8, -8, -8, -8, -8, -8, -4, 0, 4, 4, 4, 4, 0, 0, 0, -4 and -4
 
     set {_seed} to {_parkourId} parsed as number
     set {_hundreds} to floor({_seed} / 100)
