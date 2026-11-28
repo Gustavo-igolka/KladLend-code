@@ -164,8 +164,8 @@ on right click holding crossbow:
 function maxReleaseCaptured(p: player, result: text):
     loop {max.captured.%{_p}%::*}:
         set {_s} to loop-value
+        delete {max.captured.%{_s}%}
         if {_s} is alive:
-            delete {max.captured.%{_s}%}
             if {dummy.kind.%{_s}%} is "survivor":
                 send "&e[DUMMY] Манекен освобождён из захвата Экскалибура." to {dummy.owner}
             else:

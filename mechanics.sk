@@ -249,8 +249,6 @@ on right click:
     if {max.captured.%player%} is true:
         cancel event
         stop
-    if {max.captured.%player%} is true:
-        cancel event
 
 on consume:
     if {max.captured.%player%} is true:
