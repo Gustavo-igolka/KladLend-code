@@ -273,7 +273,7 @@ function maxRunExcalibur(p: player):
                                 awardXP({_p}, "max", 20)
                                 send "&c&lТебя захватил Экскалибур!" to {_s}
         loop {dummy.list::*}:
-            set {_d} to loop-value
+            set {_d} to loop-value-2
             if {dummy.kind.%{_d}%} is "survivor":
                 if {_d} is not in {max.captured.%{_p}%::*}:
                     set {_checkLoc} to location(x-coordinate of {_p}, y-coordinate of {_d}, z-coordinate of {_p}, {_w})

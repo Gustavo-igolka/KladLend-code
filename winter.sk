@@ -58,8 +58,8 @@ on player move:
                             set {_velocity} to velocity of player
                             set {_vx} to x component of {_velocity}
                             set {_vz} to z component of {_velocity}
-                            multiply {_vx} by 1.08
-                            multiply {_vz} by 1.08
+                            set {_vx} to {_vx} * 1.08
+                            set {_vz} to {_vz} * 1.08
                             if {_vx} > 0.32:
                                 set {_vx} to 0.32
                             else if {_vx} < -0.32:
