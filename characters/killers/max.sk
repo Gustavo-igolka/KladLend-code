@@ -83,7 +83,12 @@ function maxFireVolyna(p: player):
         set {_cx} to (x-coordinate of {_base}) + {_dx} * (1 + {_step})
         set {_cz} to (z-coordinate of {_base}) + {_dz} * (1 + {_step})
         set {_cy} to y-coordinate of {_base}
-        execute console command "particle minecraft:crit %{_cx}% %{_cy}% %{_cz}% 0 0 0 0 1 normal"
+        set {_py} to {_cy} + 1
+        set {_ox} to {_dz} * 1.2
+        set {_oz} to {_dx} * -1.2
+        execute console command "particle minecraft:flame %{_cx}% %{_py}% %{_cz}% 0 0 0 0 1 force"
+        execute console command "particle minecraft:flame %{_cx} + {_ox}% %{_py}% %{_cz} + {_oz}% 0 0 0 0 1 force"
+        execute console command "particle minecraft:flame %{_cx} - {_ox}% %{_py}% %{_cz} - {_oz}% 0 0 0 0 1 force"
         loop all players:
             set {_s} to loop-player
             if maxValidTarget({_p}, {_s}) is true:
@@ -126,6 +131,9 @@ function maxFireVolyna(p: player):
                                         add {_d} to {max.volynaHit.%{_p}%::*}
                                         send "&c[DUMMY] Волына попала по манекену-выжившему." to {dummy.owner}
         wait 1 tick
+    # Флаг снимаем ЗДЕСЬ, а не в событии: функция с wait не блокирует вызвавший код,
+    # и раньше флаг сбрасывался сразу после первого тика — выстрел обрывался.
+    delete {max.volynaActive.%{_p}%}
 
 on right click holding crossbow:
     if name of player's tool is "&cВолына":
@@ -154,6 +162,8 @@ on right click holding crossbow:
                     execute console command "playsound minecraft:item.crossbow.loading_start master %loop-player%"
             loop 30 times:
                 wait 2 ticks
+                if {stunned.%player%} is not true:
+                    set walk speed of player to 0
                 execute console command "execute at %player% run particle minecraft:smoke ~ ~1 ~ 0.2 0.2 0.2 0.01 3 normal"
                 if {max.interrupted.%player%} is true:
                     stop loop
@@ -168,7 +178,6 @@ on right click holding crossbow:
                     set walk speed of player to 0.2
                     set {max.volynaActive.%player%} to true
                     maxFireVolyna(player)
-                    delete {max.volynaActive.%player%}
                     stop
             delete {max.locked.%player%}
             delete {max.interrupted.%player%}
@@ -197,10 +206,9 @@ function maxReleaseCaptured(p: player, result: text):
 
 function maxRunExcalibur(p: player):
     set {max.running.%{_p}%} to true
-    set {_baseY} to y-coordinate of {_p}
     set {_yaw} to yaw of location of {_p}
     set {_result} to "timer"
-    loop 70 times:
+    loop 140 times:
         if {_p} is not online:
             set {_result} to "stun"
             stop loop
@@ -217,35 +225,36 @@ function maxRunExcalibur(p: player):
             if {round.live} is not true:
                 set {_result} to "stun"
                 stop loop
+        # Направление плавно догоняет взгляд (3° за тик = 60°/сек).
         set {_look} to yaw of location of {_p}
         set {_diff} to {_look} - {_yaw}
         while {_diff} > 180:
             subtract 360 from {_diff}
         while {_diff} < -180:
             add 360 to {_diff}
-        if {_diff} > 6:
-            add 6 to {_yaw}
-        else if {_diff} < -6:
-            subtract 6 from {_yaw}
+        if {_diff} > 3:
+            add 3 to {_yaw}
+        else if {_diff} < -3:
+            subtract 3 from {_yaw}
         else:
             set {_yaw} to {_look}
         set {_dx} to sin({_yaw}) * -1
         set {_dz} to cos({_yaw})
-        set {_stepSpeed} to 0.7
+        set {_stepSpeed} to 0.35
         if {thomas.slowUntil.%{_p}%} is set:
             if {thomas.slowUntil.%{_p}%} > now:
-                set {_stepSpeed} to 0.595
+                set {_stepSpeed} to 0.2975
         if {sanya.turretSlowUntil.%{_p}%} is set:
             if {sanya.turretSlowUntil.%{_p}%} > now:
-                set {_stepSpeed} to 0.49
+                set {_stepSpeed} to 0.245
         set {_from} to location of {_p}
-        set {_nx} to (x-coordinate of {_from}) + ({_dx} * {_stepSpeed})
-        set {_nz} to (z-coordinate of {_from}) + ({_dz} * {_stepSpeed})
-        set {_ny} to {_baseY}
         set {_w} to world of {_from}
-        set {_next} to location({_nx}, {_ny}, {_nz}, {_w})
-        set {_lowCheck} to location({_nx}, {_ny} + 0.6, {_nz}, {_w})
-        set {_highCheck} to location({_nx}, {_ny} + 1.6, {_nz}, {_w})
+        set {_baseY} to y-coordinate of {_from}
+        # Проверка стены на 2 шага вперёд.
+        set {_nx} to (x-coordinate of {_from}) + ({_dx} * {_stepSpeed} * 2)
+        set {_nz} to (z-coordinate of {_from}) + ({_dz} * {_stepSpeed} * 2)
+        set {_lowCheck} to location({_nx}, {_baseY} + 0.6, {_nz}, {_w})
+        set {_highCheck} to location({_nx}, {_baseY} + 1.6, {_nz}, {_w})
         set {_blocked} to false
         if block at {_lowCheck} is not passable:
             if block at {_lowCheck} is not ladder:
@@ -256,7 +265,8 @@ function maxRunExcalibur(p: player):
         if {_blocked} is true:
             set {_result} to "wall"
             stop loop
-        teleport {_p} to {_next}
+        # Движение через скорость: камера не трогается, ход плавный каждый тик.
+        set velocity of {_p} to vector({_dx} * {_stepSpeed}, -0.1, {_dz} * {_stepSpeed})
         loop all players:
             set {_s} to loop-player
             if maxValidTarget({_p}, {_s}) is true:
@@ -292,7 +302,8 @@ function maxRunExcalibur(p: player):
                 if distance between {_s} and {_p} > 2:
                     set {_follow} to location((x-coordinate of {_p}) + ({_dx} * 1.2), y-coordinate of {_p}, (z-coordinate of {_p}) + ({_dz} * 1.2), {_w})
                 teleport {_s} to {_follow}
-        wait 2 ticks
+        wait 1 tick
+    set velocity of {_p} to vector(0, 0, 0)
     set {max.running.%{_p}%} to false
     maxReleaseCaptured({_p}, {_result})
     if {_result} is "timer":
@@ -330,6 +341,8 @@ on right click holding diamond sword:
             send "&eЭкскалибур готовится..." to player
             loop 15 times:
                 wait 2 ticks
+                if {stunned.%player%} is not true:
+                    set walk speed of player to 0
                 if {max.interrupted.%player%} is true:
                     stop loop
             set {_cancelled} to false

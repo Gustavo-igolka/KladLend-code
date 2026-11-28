@@ -135,8 +135,9 @@ every 1 second:
     loop all players:
         if {char.%loop-player%} is set:
             if {project.freezeToken.%loop-player%} is not set:
-                if walk speed of loop-player is not 0.2:
-                    set walk speed of loop-player to 0.2
+                if {max.locked.%loop-player%} is not true:
+                    if walk speed of loop-player is not 0.2:
+                        set walk speed of loop-player to 0.2
 
 # --- Проверка попаданий по точкам-челюстям: каждую точку проверяем раз в
 #     секунду в течение 14 сек её жизни; как только КТО-ТО из выживших в
