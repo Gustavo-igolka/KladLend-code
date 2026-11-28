@@ -53,6 +53,9 @@ function projectApplyCureDebuff(target: player):
         maniacBoost({round.maniac}, 5, 1)
 
 on right click on anvil:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         set {_loc} to location of event-block
         if {char.%player%} is "project":

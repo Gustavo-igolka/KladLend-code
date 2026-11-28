@@ -10,6 +10,9 @@ options:
 # ---------------------------------------------------------
 
 on right click holding splash potion:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -51,6 +54,9 @@ on right click holding splash potion:
                 send "&a✔ Зелье исцеления снова готово!" to player
 
 on right click holding sugar:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -252,6 +258,9 @@ function thomasCast(p: player, type: text):
         send colored {_ready} to {_p}
 
 on right click holding bow:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -322,6 +331,9 @@ function sanyaDispenserAura(p: player, stand: entity):
         wait 5 seconds
 
 on right click holding iron nugget:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -375,6 +387,9 @@ on right click holding iron nugget:
                 send "&a✔ Турель снова готова к установке!" to player
 
 on right click holding gold nugget:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -473,6 +488,9 @@ on damage:
 # --- Стойки Сани (турель/раздатчик): нельзя снимать с них броню правым кликом.
 #     Стойки без {sanyaOwner} (например, манекены) не затрагиваются. ---
 on right click on armor stand:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {sanyaOwner.%clicked entity%} is set:
         cancel event
 # ---------------------------------------------------------
@@ -482,6 +500,9 @@ on right click on armor stand:
 
 # Подзорная труба используется только как кнопка способности.
 on right click holding spyglass:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if name of player's tool is "&bИсследование":
         cancel event
         if {char.%player%} is not "detective":
@@ -534,6 +555,9 @@ on right click holding spyglass:
 
 # Железный слиток призывает единственного активного голема.
 on right click holding iron ingot:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if name of player's tool is "&7Призыв голема":
         cancel event
         if {char.%player%} is not "detective":

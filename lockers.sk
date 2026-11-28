@@ -10,6 +10,9 @@
 # =========================================================
 
 on right click on barrel:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         set {_p} to player
 

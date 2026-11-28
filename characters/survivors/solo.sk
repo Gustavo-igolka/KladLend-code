@@ -10,6 +10,9 @@ options:
 # ---------------------------------------------------------
 
 on right click holding potion:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -27,6 +30,9 @@ on right click holding potion:
                 send "&a✔ Зелье скорости снова готово!" to player
 
 on right click holding potion:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -46,6 +52,9 @@ on right click holding potion:
                 send "&a✔ Зелье стойкости снова готово!" to player
 
 on right click holding potion:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -65,6 +74,9 @@ on right click holding potion:
 # РАТАТУЙ — выживший
 # ---------------------------------------------------------
 on right click holding clock:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -76,6 +88,9 @@ on right click holding clock:
                 send "&bМетка телепорта поставлена." to player
 
 on right click holding chorus fruit:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -112,6 +127,9 @@ on damage:
             send "&cТелепортация прервана!" to victim
 
 on right click holding redstone:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -258,6 +276,9 @@ function kirillPerformDash(p: player, resolvedMode: text):
 # --- Вор: рывок в сторону взгляда, кулдаун 25 сек. Режим/заряд решают,
 #     какая версия рывка реально сработает. ---
 on right click holding leather:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -297,6 +318,9 @@ on right click holding leather:
 
 # --- Глич: переключение режима первой способности, кулдаун 1 сек. ---
 on right click holding prismarine shard:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -319,6 +343,9 @@ on right click holding prismarine shard:
 #     момента активации. Пассивка "Железо" (ниже, on heal) блокирует любой
 #     другой хил, пока этот тик не помечен как {kirill.implantHealing.%p%}. ---
 on right click holding netherite scrap:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event

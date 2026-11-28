@@ -11,6 +11,8 @@ function maxClearState(p: player):
     delete {max.interrupted.%{_p}%}
     delete {max.captured.%{_p}%::*}
     delete {max.flameUntil.%{_p}%}
+    delete {max.abilityLockUntil.%{_p}%}
+    delete {max.passiveGlow.%{_p}%::*}
     delete {max.volynaHit.%{_p}%::*}
     if walk speed of {_p} is 0:
         set walk speed of {_p} to 0.2
@@ -154,14 +156,17 @@ on right click holding crossbow:
 function maxReleaseCaptured(p: player, result: text):
     loop {max.captured.%{_p}%::*}:
         set {_s} to loop-value
-        if {_s} is online:
+        if {_s} is alive:
             delete {max.captured.%{_s}%}
-            if {_result} is "timer":
-                damage {_s} by 1
-                push {_s} away from {_p} with speed 1.4
-            else if {_result} is "wall":
-                damage {_s} by 3
-            send "&eТы освобождён из захвата Экскалибура." to {_s}
+            if {dummy.kind.%{_s}%} is "survivor":
+                send "&e[DUMMY] Манекен освобождён из захвата Экскалибура." to {dummy.owner}
+            else:
+                if {_result} is "timer":
+                    damage {_s} by 1
+                    push {_s} away from {_p} with speed 1.4
+                else if {_result} is "wall":
+                    damage {_s} by 3
+                send "&eТы освобождён из захвата Экскалибура." to {_s}
     delete {max.captured.%{_p}%::*}
 
 function maxRunExcalibur(p: player):
@@ -216,9 +221,22 @@ function maxRunExcalibur(p: player):
                                 damage {_s} by 0.5
                                 awardXP({_p}, "max", 20)
                                 send "&c&lТебя захватил Экскалибур!" to {_s}
+        loop {dummy.list::*}:
+            set {_d} to loop-value
+            if {dummy.kind.%{_d}%} is "survivor":
+                if {_d} is not in {max.captured.%{_p}%::*}:
+                    set {_checkLoc} to location(x-coordinate of {_p}, y-coordinate of {_d}, z-coordinate of {_p}, {_w})
+                    set {_horizontal} to distance between {_checkLoc} and {_d}
+                    set {_vertical} to y-coordinate of {_d} - y-coordinate of {_p}
+                    if {_horizontal} <= 1.3:
+                        if {_vertical} >= -1.5:
+                            if {_vertical} <= 1.5:
+                                add {_d} to {max.captured.%{_p}%::*}
+                                set {max.captured.%{_d}%} to true
+                                send "&c[DUMMY] Манекен захвачен Экскалибуром." to {dummy.owner}
         loop {max.captured.%{_p}%::*}:
             set {_s} to loop-value
-            if {_s} is online:
+            if {_s} is alive:
                 set {_follow} to location((x-coordinate of {_p}) - ({_dx} * 0.8), y-coordinate of {_p}, (z-coordinate of {_p}) - ({_dz} * 0.8), {_w})
                 if distance between {_s} and {_p} > 2:
                     set {_follow} to location((x-coordinate of {_p}) + ({_dx} * 1.2), y-coordinate of {_p}, (z-coordinate of {_p}) + ({_dz} * 1.2), {_w})
@@ -303,6 +321,14 @@ on right click holding fire charge:
                         set {max.flameUntil.%{_s}%} to now + 3 seconds
                         add 1 to {_count}
                         awardXP(player, "max", 30)
+            loop {dummy.list::*}:
+                set {_d} to loop-value
+                if {dummy.kind.%{_d}%} is "survivor":
+                    if {_d} has a potion effect of glowing:
+                        remove glowing from {_d}
+                        set fire ticks of {_d} to 60
+                        add 1 to {_count}
+                        send "&c[DUMMY] Манекен подожжён Пламенем." to {dummy.owner}
             awardXP(player, "max", 10)
             send "&c&lПЛАМЯ! &7Поражено целей: %{_count}%." to player
 

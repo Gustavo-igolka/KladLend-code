@@ -248,6 +248,9 @@ on damage:
 on right click:
     if {max.captured.%player%} is true:
         cancel event
+        stop
+    if {max.captured.%player%} is true:
+        cancel event
 
 on consume:
     if {max.captured.%player%} is true:
@@ -349,6 +352,9 @@ on pickup:
                 cancel event
 
 on right click holding golden apple:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -392,6 +398,9 @@ on right click holding golden apple:
                 send "&cИспользование Аптечки прервано!" to {_p}
 
 on right click holding potion:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event

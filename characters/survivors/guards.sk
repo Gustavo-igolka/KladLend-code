@@ -64,6 +64,9 @@ on left click:
                 tryCooldown(player, "mihu_stun", 40)
 
 on right click holding potion:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -195,6 +198,9 @@ function isBehind(attacker: player, victim: player) :: boolean:
         return false
 
 on right click holding gray dye:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -212,6 +218,9 @@ on right click holding gray dye:
                 send "&a✔ Краска снова готова!" to player
 
 on right click holding ghast tear:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -292,6 +301,9 @@ function dartApplySlow(p: player, lvl: number):
 
 # --- Монета ---
 on right click holding raw gold:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -342,6 +354,9 @@ on damage:
 
 # --- Пистолет ---
 on right click holding crossbow:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -430,6 +445,9 @@ on right click holding crossbow:
 
 # --- Знак ---
 on right click holding oak sign:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -473,6 +491,9 @@ on right click holding oak sign:
 
 # --- Шляпа ---
 on right click holding leather helmet:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -521,6 +542,9 @@ function grantMayorAbsorption(p: player):
     send "&6&l✚ Over Heal обновлён: +2 сердца." to {_p}
 
 on right click holding paper:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
