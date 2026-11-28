@@ -62,6 +62,55 @@ every 5 ticks:
                                 if {_d} does not have a potion effect of glowing:
                                     apply glowing to {_d} for 1 second
 
+# Проверка попаданий Волыны за один тик. Вынесена в отдельную функцию без вложенных
+# циклов (нет путаницы loop-value-N), метки попаданий — флаги по каждой цели.
+function maxVolynaHitScan(p: player, cx: number, cy: number, cz: number, dx: number, dz: number):
+    loop all players:
+        set {_s} to loop-player
+        if maxValidTarget({_p}, {_s}) is true:
+            if {max.volynaHit.%{_p}%::%{_s}%} is not set:
+                set {_vx} to (x-coordinate of {_s}) - {_cx}
+                set {_vz} to (z-coordinate of {_s}) - {_cz}
+                set {_side} to abs(({_vx} * {_dz}) - ({_vz} * {_dx}))
+                set {_forward} to ({_vx} * {_dx}) + ({_vz} * {_dz})
+                set {_height} to (y-coordinate of {_s}) - {_cy}
+                if {_side} <= 1.5:
+                    if {_forward} >= -0.75:
+                        if {_forward} <= 0.75:
+                            if {_height} >= -1:
+                                if {_height} <= 3:
+                                    set {max.volynaHit.%{_p}%::%{_s}%} to true
+                                    set {_dist} to distance between {_p} and {_s}
+                                    set {_dmg} to 3
+                                    if {_dist} <= 2:
+                                        set {_dmg} to 4
+                                    set {_blocked} to false
+                                    if {andrey.invincible.%{_s}%} is true:
+                                        set {_blocked} to true
+                                    if {mayor.parrying.%{_s}%} is true:
+                                        set {_blocked} to true
+                                    damage {_s} by {_dmg}
+                                    apply glowing to {_s} for 6 seconds
+                                    if {_blocked} is false:
+                                        apply poison 1 to {_s} for 2 seconds
+                                    awardXP({_p}, "max", 30)
+    loop {dummy.list::*}:
+        set {_d} to loop-value
+        if {dummy.kind.%{_d}%} is "survivor":
+            if {max.volynaHit.%{_p}%::%{_d}%} is not set:
+                set {_vx} to (x-coordinate of {_d}) - {_cx}
+                set {_vz} to (z-coordinate of {_d}) - {_cz}
+                set {_side} to abs(({_vx} * {_dz}) - ({_vz} * {_dx}))
+                set {_forward} to ({_vx} * {_dx}) + ({_vz} * {_dz})
+                set {_height} to (y-coordinate of {_d}) - {_cy}
+                if {_side} <= 1.5:
+                    if {_forward} >= -0.75:
+                        if {_forward} <= 0.75:
+                            if {_height} >= -1:
+                                if {_height} <= 3:
+                                    set {max.volynaHit.%{_p}%::%{_d}%} to true
+                                    send "&c[DUMMY] Волына попала по манекену-выжившему." to {dummy.owner}
+
 # =========================================================
 # Волына — КД 40 сек. Прострел 3×3×1, 10 блоков/сек, дальность 30.
 # =========================================================
@@ -89,47 +138,7 @@ function maxFireVolyna(p: player):
         execute console command "particle minecraft:flame %{_cx}% %{_py}% %{_cz}% 0 0 0 0 1 force"
         execute console command "particle minecraft:flame %{_cx} + {_ox}% %{_py}% %{_cz} + {_oz}% 0 0 0 0 1 force"
         execute console command "particle minecraft:flame %{_cx} - {_ox}% %{_py}% %{_cz} - {_oz}% 0 0 0 0 1 force"
-        loop all players:
-            set {_s} to loop-player
-            if maxValidTarget({_p}, {_s}) is true:
-                if {_s} is not in {max.volynaHit.%{_p}%::*}:
-                    set {_side} to abs(((x-coordinate of {_s}) - {_cx}) * {_dz} - ((z-coordinate of {_s}) - {_cz}) * {_dx})
-                    set {_forward} to ((x-coordinate of {_s}) - {_cx}) * {_dx} + ((z-coordinate of {_s}) - {_cz}) * {_dz}
-                    set {_height} to y-coordinate of {_s} - {_cy}
-                    if {_side} <= 1.5:
-                        if {_forward} >= -0.5:
-                            if {_forward} <= 0.5:
-                                if {_height} >= 0:
-                                    if {_height} <= 3:
-                                        add {_s} to {max.volynaHit.%{_p}%::*}
-                                        set {_dist} to distance between {_p} and {_s}
-                                        set {_dmg} to 3
-                                        if {_dist} <= 2:
-                                            set {_dmg} to 4
-                                        set {_blocked} to false
-                                        if {andrey.invincible.%{_s}%} is true:
-                                            set {_blocked} to true
-                                        if {mayor.parrying.%{_s}%} is true:
-                                            set {_blocked} to true
-                                        damage {_s} by {_dmg}
-                                        apply glowing to {_s} for 6 seconds
-                                        if {_blocked} is false:
-                                            apply poison 1 to {_s} for 2 seconds
-                                        awardXP({_p}, "max", 30)
-        loop {dummy.list::*}:
-            set {_d} to loop-value-2
-            if {dummy.kind.%{_d}%} is "survivor":
-                if {_d} is not in {max.volynaHit.%{_p}%::*}:
-                    set {_side} to abs(((x-coordinate of {_d}) - {_cx}) * {_dz} - ((z-coordinate of {_d}) - {_cz}) * {_dx})
-                    set {_forward} to ((x-coordinate of {_d}) - {_cx}) * {_dx} + ((z-coordinate of {_d}) - {_cz}) * {_dz}
-                    set {_height} to y-coordinate of {_d} - {_cy}
-                    if {_side} <= 1.5:
-                        if {_forward} >= -0.5:
-                            if {_forward} <= 0.5:
-                                if {_height} >= 0:
-                                    if {_height} <= 3:
-                                        add {_d} to {max.volynaHit.%{_p}%::*}
-                                        send "&c[DUMMY] Волына попала по манекену-выжившему." to {dummy.owner}
+        maxVolynaHitScan({_p}, {_cx}, {_cy}, {_cz}, {_dx}, {_dz})
         wait 1 tick
     # Флаг снимаем ЗДЕСЬ, а не в событии: функция с wait не блокирует вызвавший код,
     # и раньше флаг сбрасывался сразу после первого тика — выстрел обрывался.
@@ -270,7 +279,7 @@ function maxRunExcalibur(p: player):
         loop all players:
             set {_s} to loop-player
             if maxValidTarget({_p}, {_s}) is true:
-                if {_s} is not in {max.captured.%{_p}%::*}:
+                if {max.captured.%{_s}%} is not set:
                     set {_checkLoc} to location(x-coordinate of {_p}, y-coordinate of {_s}, z-coordinate of {_p}, {_w})
                     set {_horizontal} to distance between {_checkLoc} and {_s}
                     set {_vertical} to y-coordinate of {_s} - y-coordinate of {_p}
@@ -285,7 +294,7 @@ function maxRunExcalibur(p: player):
         loop {dummy.list::*}:
             set {_d} to loop-value-2
             if {dummy.kind.%{_d}%} is "survivor":
-                if {_d} is not in {max.captured.%{_p}%::*}:
+                if {max.captured.%{_d}%} is not set:
                     set {_checkLoc} to location(x-coordinate of {_p}, y-coordinate of {_d}, z-coordinate of {_p}, {_w})
                     set {_horizontal} to distance between {_checkLoc} and {_d}
                     set {_vertical} to y-coordinate of {_d} - y-coordinate of {_p}
