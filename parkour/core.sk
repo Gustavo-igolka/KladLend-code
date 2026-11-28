@@ -76,6 +76,11 @@ on move:
         if distance between player and {parkour.finish::%{_id}%} <= 1.5:
             parkourStop(player, true, true)
 
+# Игроки внутри САП не получают урон от мобов, падения и других источников.
+on damage of player:
+    if {parkour.active::%uuid of victim%} is true:
+        cancel event
+
 on quit:
     parkourStop(player, false, false)
 
