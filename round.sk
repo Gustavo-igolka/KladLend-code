@@ -361,6 +361,8 @@ command /startround <text>:
             delete {project.dashStack.%loop-player%}
             delete {project.channeling.%loop-player%}
             delete {project.stunImmune.%loop-player%}
+            delete {thomas.slowUntil.%loop-player%}
+            delete {sanya.turretSlowUntil.%loop-player%}
             maxClearState(loop-player)
             if {afk.%loop-player%} is not true:
                 if {menu.music.sound} is set:
@@ -798,6 +800,8 @@ function stopRound(message: text):
         delete {project.dashStackToken.%loop-player%}
         delete {project.channeling.%loop-player%}
         delete {project.stunImmune.%loop-player%}
+        delete {thomas.slowUntil.%loop-player%}
+        delete {sanya.turretSlowUntil.%loop-player%}
         maxClearState(loop-player)
         delete {project.rushReadyAt.%loop-player%}
         delete {maniac.boostUntil.%loop-player%}

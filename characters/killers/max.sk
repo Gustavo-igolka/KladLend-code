@@ -224,9 +224,16 @@ function maxRunExcalibur(p: player):
             set {_yaw} to {_look}
         set {_dx} to sin({_yaw}) * -1
         set {_dz} to cos({_yaw})
+        set {_stepSpeed} to 0.7
+        if {thomas.slowUntil.%{_p}%} is set:
+            if {thomas.slowUntil.%{_p}%} > now:
+                set {_stepSpeed} to 0.595
+        if {sanya.turretSlowUntil.%{_p}%} is set:
+            if {sanya.turretSlowUntil.%{_p}%} > now:
+                set {_stepSpeed} to 0.49
         set {_from} to location of {_p}
-        set {_nx} to (x-coordinate of {_from}) + ({_dx} * 0.7)
-        set {_nz} to (z-coordinate of {_from}) + ({_dz} * 0.7)
+        set {_nx} to (x-coordinate of {_from}) + ({_dx} * {_stepSpeed})
+        set {_nz} to (z-coordinate of {_from}) + ({_dz} * {_stepSpeed})
         set {_ny} to {_baseY}
         set {_w} to world of {_from}
         set {_next} to location({_nx}, {_ny}, {_nz}, {_w})

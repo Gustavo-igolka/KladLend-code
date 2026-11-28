@@ -188,6 +188,8 @@ function thomasApply(p: player, t: entity, type: text):
         else if {_type} is "slow":
             send "&bЛуч попал: замедление, подсветка и ошеломление!" to {_p}
             apply slowness 1 to {_t} for 5 seconds
+            if {_t} is a player:
+                set {thomas.slowUntil.%{_t}%} to now + 5 seconds
             apply glowing to {_t} for 5 seconds
             staggerPlayer({_t}, 4 seconds)
     else if {dummy.kind.%{_t}%} is set:
@@ -298,9 +300,11 @@ function sanyaTurretAura(p: player, stand: entity):
                 if loop-player is not {_p}:
                     if loop-player is within 10 blocks of {_stand}:
                         apply slowness 2 to loop-player for 2 seconds
+                        set {sanya.turretSlowUntil.%loop-player%} to now + 2 seconds
             else if isManiac({char.%loop-player%}) is true:
                 if loop-player is within 10 blocks of {_stand}:
                     apply slowness 2 to loop-player for 2 seconds
+                    set {sanya.turretSlowUntil.%loop-player%} to now + 2 seconds
         loop {dummy.list::*}:
             if {dummy.kind.%loop-value%} is "maniac":
                 if loop-value is within 10 blocks of {_stand}:
