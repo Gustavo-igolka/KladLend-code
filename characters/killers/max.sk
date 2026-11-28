@@ -4,6 +4,8 @@
 # =========================================================
 
 function maxClearState(p: player):
+    loop {max.captured.%{_p}%::*}:
+        delete {max.captured.%loop-value%}
     delete {max.locked.%{_p}%}
     delete {max.running.%{_p}%}
     delete {max.interrupted.%{_p}%}
@@ -40,8 +42,6 @@ every 5 ticks:
                             if distance between {_p} and {_s} <= 4:
                                 if {max.flameUntil.%{_s}%} is not set:
                                     if {_s} does not have a potion effect of glowing:
-                                        apply glowing to {_s} for 1 second
-                                    else if {max.passiveGlow.%{_p}%.%{_s}%} is true:
                                         apply glowing to {_s} for 1 second
                                 set {max.passiveGlow.%{_p}%.%{_s}%} to true
                             else:
@@ -118,12 +118,19 @@ on right click holding crossbow:
                 stop
             if {max.locked.%player%} is true:
                 stop
+            if {max.abilityLockUntil.%player%} is set:
+                if {max.abilityLockUntil.%player%} > now:
+                    send "&cСпособности пока недоступны." to player
+                    stop
             if tryCooldown(player, "max_volyna", 40) is false:
                 stop
             set {max.locked.%player%} to true
             delete {max.interrupted.%player%}
             set walk speed of player to 0
             send "&c&lВолына заряжается..." to player
+            loop all players:
+                if distance between player and loop-player <= 25:
+                    execute console command "playsound minecraft:item.crossbow.loading_start master %loop-player%"
             loop 30 times:
                 wait 2 ticks
                 if {max.interrupted.%player%} is true:
@@ -131,6 +138,9 @@ on right click holding crossbow:
             if {max.interrupted.%player%} is not true:
                 if {stunned.%player%} is not true:
                     send "&c&lВыстрел!" to player
+                    loop all players:
+                        if distance between player and loop-player <= 25:
+                            execute console command "playsound minecraft:item.crossbow.shoot master %loop-player%"
                     maxFireVolyna(player)
             delete {max.locked.%player%}
             delete {max.interrupted.%player%}
@@ -185,8 +195,9 @@ function maxRunExcalibur(p: player):
         set {_ny} to y-coordinate of {_from}
         set {_w} to world of {_from}
         set {_next} to location({_nx}, {_ny}, {_nz}, {_w})
-        set {_head} to location({_nx}, {_ny} + 1, {_nz}, {_w})
-        if block at {_next} is not passable or block at {_head} is not passable:
+        set {_lowCheck} to location({_nx}, {_ny} + 0.6, {_nz}, {_w})
+        set {_highCheck} to location({_nx}, {_ny} + 1.6, {_nz}, {_w})
+        if block at {_lowCheck} is not passable or block at {_highCheck} is not passable:
             set {_result} to "wall"
             stop loop
         teleport {_p} to {_next}
@@ -221,6 +232,8 @@ function maxRunExcalibur(p: player):
         apply slowness 3 to {_p} for 2 seconds
     delete {max.locked.%{_p}%}
     delete {max.interrupted.%{_p}%}
+    if {stunned.%{_p}%} is not true:
+        set walk speed of {_p} to 0.2
     set {max.abilityLockUntil.%{_p}%} to now + 5 seconds
 
 on right click holding diamond sword:
