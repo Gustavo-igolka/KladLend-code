@@ -63,7 +63,7 @@ function parkourStopAll():
     delete {parkour.sessions::*}
     delete {parkour.slotOwner::*}
 
-on move:
+on player move:
     set {_id} to "%uuid of player%"
     if {parkour.active::%{_id}%} is true:
         # Падение ниже собственного этажа возвращает игрока на старт.
