@@ -24,7 +24,7 @@ function parkourGenerate(p: player, parkourId: text, slot: number):
     loop 23 times:
         set {_yy} to {_floorY} + loop-number
         loop 31 times:
-            set {_offset} to loop-number-2 - 16
+            set {_offset} to loop-number - 16
 
             set {_loc} to location at ({_baseX} - 15), {_yy}, ({_baseZ} + {_offset}) in {_world}
             set block at {_loc} to glass
@@ -80,36 +80,37 @@ function parkourGenerate(p: player, parkourId: text, slot: number):
         set {_pz} to {_baseZ} + {_zs::%{_step}%}
         set {_platformY} to {_floorY} + 1 + {_height}
 
-        loop 2 times:
-            set {_blockX} to {_px} + loop-number-2 - 1
-            loop 2 times:
-                set {_blockZ} to {_pz} + loop-number-3 - 1
-                set {_loc} to location at {_blockX}, {_platformY}, {_blockZ} in {_world}
+        set {_dx::*} to 0, 1, 0, 1
+        set {_dz::*} to 0, 0, 1, 1
+        loop 4 times:
+            set {_blockX} to {_px} + {_dx::%loop-number%}
+            set {_blockZ} to {_pz} + {_dz::%loop-number%}
+            set {_loc} to location at {_blockX}, {_platformY}, {_blockZ} in {_world}
 
-                if {_step} is 40:
-                    set block at {_loc} to emerald block
-                else if {_variant} is 0:
-                    set block at {_loc} to stone bricks
-                else if {_variant} is 1:
-                    set block at {_loc} to cobblestone
-                else if {_variant} is 2:
-                    set block at {_loc} to mossy stone bricks
-                else if {_variant} is 3:
-                    set block at {_loc} to deepslate bricks
-                else if {_variant} is 4:
-                    set block at {_loc} to quartz block
-                else if {_variant} is 5:
-                    set block at {_loc} to prismarine bricks
-                else if {_variant} is 6:
-                    set block at {_loc} to copper block
-                else if {_variant} is 7:
-                    set block at {_loc} to red nether bricks
-                else if {_variant} is 8:
-                    set block at {_loc} to purpur block
-                else:
-                    set block at {_loc} to amethyst block
+            if {_step} is 40:
+                set block at {_loc} to emerald block
+            else if {_variant} is 0:
+                set block at {_loc} to stone bricks
+            else if {_variant} is 1:
+                set block at {_loc} to cobblestone
+            else if {_variant} is 2:
+                set block at {_loc} to mossy stone bricks
+            else if {_variant} is 3:
+                set block at {_loc} to deepslate bricks
+            else if {_variant} is 4:
+                set block at {_loc} to quartz block
+            else if {_variant} is 5:
+                set block at {_loc} to prismarine bricks
+            else if {_variant} is 6:
+                set block at {_loc} to copper block
+            else if {_variant} is 7:
+                set block at {_loc} to red nether bricks
+            else if {_variant} is 8:
+                set block at {_loc} to purpur block
+            else:
+                set block at {_loc} to amethyst block
 
-                add {_loc} to {parkour.blocks.%{_id}%::*}
+            add {_loc} to {parkour.blocks.%{_id}%::*}
 
         if {_step} is 1:
             set {parkour.start::%{_id}%} to location at ({_px} + 0.5), ({_platformY} + 1), ({_pz} + 0.5) in {_world}
