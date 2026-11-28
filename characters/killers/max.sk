@@ -29,6 +29,13 @@ function maxValidTarget(p: player, s: player) :: boolean:
         return false
     return true
 
+function maxAbilityBlocked(p: player) :: boolean:
+    if {stunned.%{_p}%} is true:
+        return true
+    if {staggered.%{_p}%} is true:
+        return true
+    return false
+
 # Пассивка: обновляем свечение короткими импульсами. Уже подсвеченные
 # другими источниками цели не получают укороченный эффект.
 every 5 ticks:
@@ -49,7 +56,7 @@ every 5 ticks:
                             else:
                                 delete {max.passiveGlow.%{_p}%.%{_s}%}
                     loop {dummy.list::*}:
-                        set {_d} to loop-value
+                        set {_d} to loop-value-2
                         if {dummy.kind.%{_d}%} is "survivor":
                             if distance between {_p} and {_d} <= 4:
                                 if {_d} does not have a potion effect of glowing:
@@ -105,7 +112,7 @@ function maxFireVolyna(p: player):
                                             apply poison 1 to {_s} for 2 seconds
                                         awardXP({_p}, "max", 30)
         loop {dummy.list::*}:
-            set {_d} to loop-value
+            set {_d} to loop-value-2
             if {dummy.kind.%{_d}%} is "survivor":
                 if {_d} is not in {max.volynaHit.%{_p}%::*}:
                     set {_side} to abs(((x-coordinate of {_d}) - {_cx}) * {_dz} - ((z-coordinate of {_d}) - {_cz}) * {_dx})
@@ -127,7 +134,7 @@ on right click holding crossbow:
             if {round.active} is true:
                 if {round.live} is not true:
                     stop
-            if {stunned.%player%} is true or {staggered.%player%} is true:
+            if maxAbilityBlocked(player) is true:
                 send "&cСейчас нельзя использовать способность." to player
                 stop
             if {max.locked.%player%} is true:
@@ -279,7 +286,7 @@ function maxRunExcalibur(p: player):
                                 set {max.captured.%{_d}%} to true
                                 send "&c[DUMMY] Манекен захвачен Экскалибуром." to {dummy.owner}
         loop {max.captured.%{_p}%::*}:
-            set {_s} to loop-value
+            set {_s} to loop-value-2
             if {_s} is alive:
                 set {_follow} to location((x-coordinate of {_p}) - ({_dx} * 0.8), y-coordinate of {_p}, (z-coordinate of {_p}) - ({_dz} * 0.8), {_w})
                 if distance between {_s} and {_p} > 2:
@@ -305,7 +312,7 @@ on right click holding diamond sword:
             if {round.active} is true:
                 if {round.live} is not true:
                     stop
-            if {stunned.%player%} is true or {staggered.%player%} is true:
+            if maxAbilityBlocked(player) is true:
                 send "&cСейчас нельзя использовать способность." to player
                 stop
             if {max.locked.%player%} is true:
@@ -325,7 +332,12 @@ on right click holding diamond sword:
                 wait 2 ticks
                 if {max.interrupted.%player%} is true:
                     stop loop
-            if {max.interrupted.%player%} is true or {stunned.%player%} is true:
+            set {_cancelled} to false
+            if {max.interrupted.%player%} is true:
+                set {_cancelled} to true
+            if {stunned.%player%} is true:
+                set {_cancelled} to true
+            if {_cancelled} is true:
                 delete {max.locked.%player%}
                 delete {max.interrupted.%player%}
                 if {stunned.%player%} is not true:
@@ -344,7 +356,7 @@ on right click holding fire charge:
             if {round.active} is true:
                 if {round.live} is not true:
                     stop
-            if {stunned.%player%} is true or {staggered.%player%} is true:
+            if maxAbilityBlocked(player) is true:
                 send "&cСейчас нельзя использовать способность." to player
                 stop
             if {max.locked.%player%} is true:
@@ -362,7 +374,7 @@ on right click holding fire charge:
                     if {_s} does not have a potion effect of invisibility:
                         if {_s} has a potion effect of glowing:
                             remove glowing from {_s}
-                            set fire ticks of {_s} to 60
+                            ignite {_s} for 3 seconds
                             set {max.flameUntil.%{_s}%} to now + 3 seconds
                             add 1 to {_count}
                             awardXP(player, "max", 30)
@@ -371,7 +383,7 @@ on right click holding fire charge:
                 if {dummy.kind.%{_d}%} is "survivor":
                     if {_d} has a potion effect of glowing:
                         remove glowing from {_d}
-                        set fire ticks of {_d} to 60
+                        ignite {_d} for 3 seconds
                         add 1 to {_count}
                         send "&c[DUMMY] Манекен подожжён Пламенем." to {dummy.owner}
             awardXP(player, "max", 10)
@@ -390,9 +402,9 @@ on quit:
 every 2 ticks:
     loop all players:
         if {max.flameUntil.%loop-player%} is set:
-            if fire ticks of loop-player <= 0:
+            if {max.flameUntil.%loop-player%} <= now:
                 delete {max.flameUntil.%loop-player%}
-            else if {max.flameUntil.%loop-player%} <= now:
+            else if loop-player is not burning:
                 delete {max.flameUntil.%loop-player%}
 
 on join:

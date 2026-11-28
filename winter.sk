@@ -47,22 +47,27 @@ on player move:
     if {round.active} is true:
         if {round.live} is true:
             if {round.modifier} is "blizzard":
-                if {alive.%player%} is true or player is {round.maniac}:
+                set {_canSlide} to false
+                if {alive.%player%} is true:
+                    set {_canSlide} to true
+                if player is {round.maniac}:
+                    set {_canSlide} to true
+                if {_canSlide} is true:
                     if player is on ground:
-                        if player is not sneaking:
-                            set {_velocity} to velocity of player
-                            set {_vx} to x component of {_velocity}
-                            set {_vz} to z component of {_velocity}
-                            multiply {_vx} by 1.08
-                            multiply {_vz} by 1.08
-                            if {_vx} > 0.32:
-                                set {_vx} to 0.32
-                            else if {_vx} < -0.32:
-                                set {_vx} to -0.32
-                            if {_vz} > 0.32:
-                                set {_vz} to 0.32
-                            else if {_vz} < -0.32:
-                                set {_vz} to -0.32
-                            set x component of {_velocity} to {_vx}
-                            set z component of {_velocity} to {_vz}
-                            set velocity of player to {_velocity}
+                            if player is not sneaking:
+                                set {_velocity} to velocity of player
+                                set {_vx} to x component of {_velocity}
+                                set {_vz} to z component of {_velocity}
+                                multiply {_vx} by 1.08
+                                multiply {_vz} by 1.08
+                                if {_vx} > 0.32:
+                                    set {_vx} to 0.32
+                                else if {_vx} < -0.32:
+                                    set {_vx} to -0.32
+                                if {_vz} > 0.32:
+                                    set {_vz} to 0.32
+                                else if {_vz} < -0.32:
+                                    set {_vz} to -0.32
+                                set x component of {_velocity} to {_vx}
+                                set z component of {_velocity} to {_vz}
+                                set velocity of player to {_velocity}
