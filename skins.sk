@@ -192,6 +192,8 @@ function getCharIcon(charid: text) :: item type:
         return fermented spider eye
     else if {_charid} is "samurai":
         return stone sword
+    else if {_charid} is "max":
+        return netherite sword
     else:
         return player head
 
@@ -312,6 +314,7 @@ function openSkinCharSelect(p: player, mode: text):
     set slot 3 of {_inv} to getCharIcon("project") named "&8The Project"
     set slot 4 of {_inv} to getCharIcon("blind") named "&2Незрячий"
     set slot 5 of {_inv} to getCharIcon("samurai") named "&cСамураи"
+    set slot 6 of {_inv} to getCharIcon("max") named "&cМакс"
     set slot 9 of {_inv} to getCharIcon("andrey") named "&aАндрей"
     set slot 10 of {_inv} to getCharIcon("hacker") named "&bРататуй"
     set slot 11 of {_inv} to getCharIcon("kirill") named "&aКирилл"
@@ -341,6 +344,8 @@ function charidForSlot(slot: number) :: text:
         return "blind"
     else if {_slot} is 5:
         return "samurai"
+    else if {_slot} is 6:
+        return "max"
     else if {_slot} is 9:
         return "andrey"
     else if {_slot} is 10:
