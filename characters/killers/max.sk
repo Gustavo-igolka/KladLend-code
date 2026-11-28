@@ -349,5 +349,10 @@ on right click holding fire charge:
 every 2 ticks:
     loop all players:
         if {max.flameUntil.%loop-player%} is set:
-            if {max.flameUntil.%loop-player%} <= now:
+            if fire ticks of loop-player <= 0:
                 delete {max.flameUntil.%loop-player%}
+            else if {max.flameUntil.%loop-player%} <= now:
+                delete {max.flameUntil.%loop-player%}
+
+on join:
+    delete {max.captured.%player%}
