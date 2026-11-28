@@ -43,7 +43,7 @@ command /parkour <text>:
             send "&cПлощадка САП ещё не настроена администрацией." to player
             stop
 
-        if arg-1 does not match regex "^[0-9]{3}$":
+        if arg-1 does not match "^[0-9]{3}$":
             send "&cID должен состоять ровно из трёх цифр: например, 007 или 042." to player
             stop
 

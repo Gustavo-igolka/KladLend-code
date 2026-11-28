@@ -69,7 +69,7 @@ on move:
         # Падение ниже собственного этажа возвращает игрока на старт.
         if y-coordinate of player < {parkour.floorY::%{_id}%} + 1:
             teleport player to {parkour.start::%{_id}%}
-            send action bar "&eПадение! Возвращение на начало трассы." to player
+            send actionbar "&eПадение! Возвращение на начало трассы." to player
             stop
 
         # Финиш автоматически завершает сессию.

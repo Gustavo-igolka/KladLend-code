@@ -81,9 +81,9 @@ function parkourGenerate(p: player, parkourId: text, slot: number):
         set {_platformY} to {_floorY} + 1 + {_height}
 
         loop 2 times:
-            set {_blockX} to {_px} + loop-number-1 - 1
+            set {_blockX} to {_px} + loop-number-2 - 1
             loop 2 times:
-                set {_blockZ} to {_pz} + loop-number-2 - 1
+                set {_blockZ} to {_pz} + loop-number-3 - 1
                 set {_loc} to location at {_blockX}, {_platformY}, {_blockZ} in {_world}
 
                 if {_step} is 40:
