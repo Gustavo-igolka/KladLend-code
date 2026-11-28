@@ -43,6 +43,8 @@ function getCharDisplayName(charid: text) :: text:
         return "Незрячий"
     else if {_charid} is "samurai":
         return "Самураи"
+    else if {_charid} is "max":
+        return "Макс"
     else:
         return {_charid}
 
@@ -54,6 +56,7 @@ function openManiacChoiceMenu(p: player):
     set slot 1 of {_inv} to iron axe named "&8The Project"
     set slot 4 of {_inv} to fermented spider eye named "&2Незрячий"
     set slot 2 of {_inv} to stone sword named "&cСамураи"
+    set slot 6 of {_inv} to netherite sword named "&cМакс"
     set {choose.inv.%{_p}%} to {_inv}
     set {choose.role.%{_p}%} to "maniac"
     open {_inv} to {_p}
@@ -103,6 +106,8 @@ on inventory click:
                     set {char.maniacPref.%player%} to "blind"
                 else if clicked slot is 2:
                     set {char.maniacPref.%player%} to "samurai"
+                else if clicked slot is 6:
+                    set {char.maniacPref.%player%} to "max"
                 else:
                     stop
                 close player's inventory
@@ -186,6 +191,14 @@ function give_samurai_kit(p: player):
     give paper named "&cМетка" to {_p}
     give iron axe named "&4Разрезание" to {_p}
     give ender pearl named "&5Переключение" to {_p}
+
+function give_max_kit(p: player):
+    clear inventory of {_p}
+    maxClearState({_p})
+    give stone sword to {_p}
+    give crossbow named "&cВолына" to {_p}
+    give diamond sword named "&6Экскалибур" to {_p}
+    give fire charge named "&cПламя" to {_p}
 
 function give_andrey_kit(p: player):
     clear inventory of {_p}

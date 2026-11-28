@@ -29,6 +29,8 @@ function isManiac(charid: text) :: boolean:
         return true
     else if {_charid} is "samurai":
         return true
+    else if {_charid} is "max":
+        return true
     else:
         return false
 
@@ -360,6 +362,7 @@ command /startround <text>:
             delete {project.dashStack.%loop-player%}
             delete {project.channeling.%loop-player%}
             delete {project.stunImmune.%loop-player%}
+            maxClearState(loop-player)
             if {afk.%loop-player%} is not true:
                 if {menu.music.sound} is set:
                     execute console command "/stopsound %loop-player% * %{menu.music.sound}%"
@@ -433,6 +436,8 @@ command /startround <text>:
                     give_blind_kit({_p})
                 else if {char.%{_p}%} is "samurai":
                     give_samurai_kit({_p})
+                else if {char.%{_p}%} is "max":
+                    give_max_kit({_p})
                 if {char.%{_p}%} is set:
                     applyCharacterSkin({_p}, {char.%{_p}%})
 
@@ -794,6 +799,7 @@ function stopRound(message: text):
         delete {project.dashStackToken.%loop-player%}
         delete {project.channeling.%loop-player%}
         delete {project.stunImmune.%loop-player%}
+        maxClearState(loop-player)
         delete {project.rushReadyAt.%loop-player%}
         delete {maniac.boostUntil.%loop-player%}
         delete {maniac.boostTier.%loop-player%}

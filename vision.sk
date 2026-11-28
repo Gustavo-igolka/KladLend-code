@@ -226,6 +226,9 @@ function cdBar(p: player) :: text:
     else if {_c} is "samurai":
         set {_k::*} to "samurai_mark", "samurai_slash" and "samurai_switch"
         set {_l::*} to "Метка", "Разрезание" and "Переключение"
+    else if {_c} is "max":
+        set {_k::*} to "max_volyna", "max_excalibur" and "max_flame"
+        set {_l::*} to "Волына", "Экскалибур" and "Пламя"
     set {_out} to ""
     loop {_k::*}:
         set {_part} to cdLine({_p}, loop-value, {_l::%loop-index%})

@@ -180,6 +180,9 @@ function maniacSpeedTier(p: player) :: number:
 
 # --- Убийцу нельзя ранить или убить НИЧЕМ — только оглушить/замедлить/и т.д.
 on damage:
+    if attacker is a player:
+        if {max.captured.%attacker%} is true:
+            cancel event
     # Любое получение урона прерывает активную Стойкость Томаса до остальных обработчиков.
     if victim is a player:
         if {char.%victim%} is "thomas":
@@ -219,6 +222,11 @@ on damage:
         if {round.live} is not true:
             cancel event
             stop
+    if attacker is a player:
+        if {char.%attacker%} is "max":
+            if {max.locked.%attacker%} is true:
+                cancel event
+                stop
     if {round.active} is true:
         if isManiac({char.%victim%}) is true:
             cancel event
@@ -235,6 +243,15 @@ on damage:
                         cancel event
                 else:
                     cancel event
+
+# --- Захваченный Экскалибуром выживший не может активировать предметы/способности. ---
+on right click:
+    if {max.captured.%player%} is true:
+        cancel event
+
+on consume:
+    if {max.captured.%player%} is true:
+        cancel event
 
 # ---------------------------------------------------------
 # Функция "стана" — используется Михуилонгом при ударе мечом оглушения (см. ниже).
@@ -264,6 +281,11 @@ function stunPlayer(p: player, duration: timespan):
         send "&5Дыхание сработало! Оглушение отражено." to {_p}
         maniacBoost({_p}, 5, 2)
         stop
+    # Оглушение срывает подготовку/бег Макса; отбрасывание не выставляет этот флаг.
+    if {char.%{_p}%} is "max":
+        if {max.locked.%{_p}%} is true:
+            set {max.interrupted.%{_p}%} to true
+            send "&cТвоё действие прервано оглушением!" to {_p}
     # Прерываем активный каст Проекта внешним оглушением.
     if {project.channeling.%{_p}%} is true:
         delete {project.channeling.%{_p}%}

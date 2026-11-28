@@ -115,6 +115,7 @@ command /levels:
         set slot 3 of {_inv} to iron axe named "&8The Project &7(Ур. %getCharLevel(player, "project")%)"
         set slot 4 of {_inv} to fermented spider eye named "&2Незрячий &7(Ур. %getCharLevel(player, "blind")%)"
         set slot 5 of {_inv} to stone sword named "&cСамураи &7(Ур. %getCharLevel(player, "samurai")%)"
+        set slot 6 of {_inv} to netherite sword named "&cМакс &7(Ур. %getCharLevel(player, "max")%)"
         # --- Выжившие (2-й ряд) — Рашеры → Стражи → Поддержка, тот же порядок, что и в GUI выбора ---
         set slot 9 of {_inv} to bow named "&aАндрей &7(Ур. %getCharLevel(player, "andrey")%)"
         set slot 10 of {_inv} to clock named "&bРататуй &7(Ур. %getCharLevel(player, "hacker")%)"
