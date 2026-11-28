@@ -1,0 +1,300 @@
+# =========================================================
+# MAX (id: max) — убийца.
+# Уникальные состояния и способности Макса находятся только здесь.
+# =========================================================
+
+function maxClearState(p: player):
+    delete {max.locked.%{_p}%}
+    delete {max.running.%{_p}%}
+    delete {max.interrupted.%{_p}%}
+    delete {max.captured.%{_p}%::*}
+    delete {max.flameUntil.%{_p}%}
+    delete {max.volynaHit.%{_p}%::*}
+    if walk speed of {_p} is 0:
+        set walk speed of {_p} to 0.2
+
+function maxValidTarget(p: player, s: player) :: boolean:
+    if {_s} is {_p}:
+        return false
+    if isManiac({char.%{_s}%}) is true:
+        return false
+    if {alive.%{_s}%} is not true:
+        return false
+    if {locker.%{_s}%} is set:
+        return false
+    if {_s} has a potion effect of invisibility:
+        return false
+    return true
+
+# Пассивка: обновляем свечение короткими импульсами. Уже подсвеченные
+# другими источниками цели не получают укороченный эффект.
+every 5 ticks:
+    if {round.active} is true:
+        if {round.live} is true:
+            loop all players:
+                set {_p} to loop-player
+                if {char.%{_p}%} is "max":
+                    loop all players:
+                        set {_s} to loop-player-2
+                        if maxValidTarget({_p}, {_s}) is true:
+                            if distance between {_p} and {_s} <= 4:
+                                if {max.flameUntil.%{_s}%} is not set:
+                                    if {_s} does not have a potion effect of glowing:
+                                        apply glowing to {_s} for 1 second
+                                    else if {max.passiveGlow.%{_p}%.%{_s}%} is true:
+                                        apply glowing to {_s} for 1 second
+                                set {max.passiveGlow.%{_p}%.%{_s}%} to true
+                            else:
+                                delete {max.passiveGlow.%{_p}%.%{_s}%}
+
+# =========================================================
+# Волына — КД 40 сек. Прострел 3×3×1, 10 блоков/сек, дальность 30.
+# =========================================================
+function maxFireVolyna(p: player):
+    delete {max.volynaHit.%{_p}%::*}
+    set {_base} to location of {_p}
+    set {_yaw} to yaw of {_base}
+    set {_dx} to sin({_yaw}) * -1
+    set {_dz} to cos({_yaw})
+    loop 60 times:
+        if {round.active} is not true:
+            stop loop
+        if {round.live} is not true:
+            stop loop
+        set {_step} to loop-number * 0.5
+        set {_cx} to (x-coordinate of {_base}) + {_dx} * (1 + {_step})
+        set {_cz} to (z-coordinate of {_base}) + {_dz} * (1 + {_step})
+        set {_cy} to y-coordinate of {_base}
+        loop all players:
+            set {_s} to loop-player
+            if maxValidTarget({_p}, {_s}) is true:
+                if {_s} is not in {max.volynaHit.%{_p}%::*}:
+                    set {_side} to abs(((x-coordinate of {_s}) - {_cx}) * {_dz} - ((z-coordinate of {_s}) - {_cz}) * {_dx})
+                    set {_forward} to ((x-coordinate of {_s}) - {_cx}) * {_dx} + ((z-coordinate of {_s}) - {_cz}) * {_dz}
+                    set {_height} to y-coordinate of {_s} - {_cy}
+                    if {_side} <= 1.5:
+                        if {_forward} >= -0.5:
+                            if {_forward} <= 0.5:
+                                if {_height} >= 0:
+                                    if {_height} <= 3:
+                                        add {_s} to {max.volynaHit.%{_p}%::*}
+                                        set {_dist} to distance between {_p} and {_s}
+                                        set {_dmg} to 3
+                                        if {_dist} <= 2:
+                                            set {_dmg} to 4
+                                        set {_blocked} to false
+                                        if {andrey.invincible.%{_s}%} is true:
+                                            set {_blocked} to true
+                                        damage {_s} by {_dmg}
+                                        apply glowing to {_s} for 6 seconds
+                                        if {_blocked} is false:
+                                            apply poison 1 to {_s} for 2 seconds
+                                        awardXP({_p}, "max", 30)
+        loop {dummy.list::*}:
+            set {_d} to loop-value
+            if {dummy.kind.%{_d}%} is "survivor":
+                if {_d} is not in {max.volynaHit.%{_p}%::*}:
+                    set {_side} to abs(((x-coordinate of {_d}) - {_cx}) * {_dz} - ((z-coordinate of {_d}) - {_cz}) * {_dx})
+                    set {_forward} to ((x-coordinate of {_d}) - {_cx}) * {_dx} + ((z-coordinate of {_d}) - {_cz}) * {_dz}
+                    set {_height} to y-coordinate of {_d} - {_cy}
+                    if {_side} <= 1.5:
+                        if {_forward} >= -0.5:
+                            if {_forward} <= 0.5:
+                                if {_height} >= 0:
+                                    if {_height} <= 3:
+                                        add {_d} to {max.volynaHit.%{_p}%::*}
+                                        send "&c[DUMMY] Волына попала по манекену-выжившему." to {dummy.owner}
+        wait 1 tick
+
+on right click holding crossbow:
+    if name of player's tool is "&cВолына":
+        if {char.%player%} is "max":
+            cancel event
+            if {round.active} is true:
+                if {round.live} is not true:
+                    stop
+            if {stunned.%player%} is true or {staggered.%player%} is true:
+                send "&cСейчас нельзя использовать способность." to player
+                stop
+            if {max.locked.%player%} is true:
+                stop
+            if tryCooldown(player, "max_volyna", 40) is false:
+                stop
+            set {max.locked.%player%} to true
+            delete {max.interrupted.%player%}
+            set walk speed of player to 0
+            send "&c&lВолына заряжается..." to player
+            loop 30 times:
+                wait 2 ticks
+                if {max.interrupted.%player%} is true:
+                    stop loop
+            if {max.interrupted.%player%} is not true:
+                if {stunned.%player%} is not true:
+                    send "&c&lВыстрел!" to player
+                    maxFireVolyna(player)
+            delete {max.locked.%player%}
+            delete {max.interrupted.%player%}
+            if {stunned.%player%} is not true:
+                set walk speed of player to 0.2
+
+# =========================================================
+# Экскалибур — КД 45 сек. Подготовка 1.5 сек, бег до 7 сек.
+# Стан прерывает; отбрасывание не прерывает бег.
+# =========================================================
+function maxReleaseCaptured(p: player, result: text):
+    loop {max.captured.%{_p}%::*}:
+        set {_s} to loop-value
+        if {_s} is online:
+            delete {max.captured.%{_s}%}
+            if {_result} is "timer":
+                damage {_s} by 1
+                push {_s} away from {_p} with speed 1.4
+            else if {_result} is "wall":
+                damage {_s} by 3
+            send "&eТы освобождён из захвата Экскалибура." to {_s}
+    delete {max.captured.%{_p}%::*}
+
+function maxRunExcalibur(p: player):
+    set {max.running.%{_p}%} to true
+    set {_yaw} to yaw of location of {_p}
+    set {_result} to "timer"
+    loop 70 times:
+        if {max.interrupted.%{_p}%} is true:
+            set {_result} to "stun"
+            stop loop
+        if {stunned.%{_p}%} is true:
+            set {_result} to "stun"
+            stop loop
+        set {_look} to yaw of location of {_p}
+        set {_diff} to {_look} - {_yaw}
+        while {_diff} > 180:
+            subtract 360 from {_diff}
+        while {_diff} < -180:
+            add 360 to {_diff}
+        if {_diff} > 6:
+            add 6 to {_yaw}
+        else if {_diff} < -6:
+            subtract 6 from {_yaw}
+        else:
+            set {_yaw} to {_look}
+        set {_dx} to sin({_yaw}) * -1
+        set {_dz} to cos({_yaw})
+        set {_from} to location of {_p}
+        set {_nx} to (x-coordinate of {_from}) + ({_dx} * 0.7)
+        set {_nz} to (z-coordinate of {_from}) + ({_dz} * 0.7)
+        set {_ny} to y-coordinate of {_from}
+        set {_w} to world of {_from}
+        set {_next} to location({_nx}, {_ny}, {_nz}, {_w})
+        set {_head} to location({_nx}, {_ny} + 1, {_nz}, {_w})
+        if block at {_next} is not passable or block at {_head} is not passable:
+            set {_result} to "wall"
+            stop loop
+        teleport {_p} to {_next}
+        loop all players:
+            set {_s} to loop-player
+            if maxValidTarget({_p}, {_s}) is true:
+                if {_s} is not in {max.captured.%{_p}%::*}:
+                    set {_checkLoc} to location(x-coordinate of {_p}, y-coordinate of {_s}, z-coordinate of {_p}, {_w})
+                    set {_horizontal} to distance between {_checkLoc} and {_s}
+                    set {_vertical} to y-coordinate of {_s} - y-coordinate of {_p}
+                    if {_horizontal} <= 1.3:
+                        if {_vertical} >= -1.5:
+                            if {_vertical} <= 1.5:
+                                add {_s} to {max.captured.%{_p}%::*}
+                                set {max.captured.%{_s}%} to true
+                                damage {_s} by 0.5
+                                awardXP({_p}, "max", 20)
+                                send "&c&lТебя захватил Экскалибур!" to {_s}
+        loop {max.captured.%{_p}%::*}:
+            set {_s} to loop-value
+            if {_s} is online:
+                set {_follow} to location((x-coordinate of {_p}) - ({_dx} * 0.8), y-coordinate of {_p}, (z-coordinate of {_p}) - ({_dz} * 0.8), {_w})
+                if distance between {_s} and {_p} > 2:
+                    set {_follow} to location((x-coordinate of {_p}) + ({_dx} * 1.2), y-coordinate of {_p}, (z-coordinate of {_p}) + ({_dz} * 1.2), {_w})
+                teleport {_s} to {_follow}
+        wait 2 ticks
+    set {max.running.%{_p}%} to false
+    maxReleaseCaptured({_p}, {_result})
+    if {_result} is "timer":
+        apply slowness 1 to {_p} for 4 seconds
+    else if {_result} is "wall":
+        apply slowness 3 to {_p} for 2 seconds
+    delete {max.locked.%{_p}%}
+    delete {max.interrupted.%{_p}%}
+    set {max.abilityLockUntil.%{_p}%} to now + 5 seconds
+
+on right click holding diamond sword:
+    if name of player's tool is "&6Экскалибур":
+        if {char.%player%} is "max":
+            cancel event
+            if {round.active} is true:
+                if {round.live} is not true:
+                    stop
+            if {stunned.%player%} is true or {staggered.%player%} is true:
+                send "&cСейчас нельзя использовать способность." to player
+                stop
+            if {max.locked.%player%} is true:
+                stop
+            if {max.abilityLockUntil.%player%} is set:
+                if {max.abilityLockUntil.%player%} > now:
+                    send "&cСпособности пока недоступны." to player
+                    stop
+            if tryCooldown(player, "max_excalibur", 45) is false:
+                stop
+            awardXP(player, "max", 10)
+            set {max.locked.%player%} to true
+            delete {max.interrupted.%player%}
+            set walk speed of player to 0
+            send "&eЭкскалибур готовится..." to player
+            loop 15 times:
+                wait 2 ticks
+                if {max.interrupted.%player%} is true:
+                    stop loop
+            if {max.interrupted.%player%} is true or {stunned.%player%} is true:
+                delete {max.locked.%player%}
+                delete {max.interrupted.%player%}
+                if {stunned.%player%} is not true:
+                    set walk speed of player to 0.2
+                stop
+            send "&6&lЭКСКАЛИБУР!" to player
+            maxRunExcalibur(player)
+
+# =========================================================
+# Пламя — КД 90 сек. Свечение снимается, вместо него 3 сек горения.
+# =========================================================
+on right click holding fire charge:
+    if name of player's tool is "&cПламя":
+        if {char.%player%} is "max":
+            cancel event
+            if {round.active} is true:
+                if {round.live} is not true:
+                    stop
+            if {stunned.%player%} is true or {staggered.%player%} is true:
+                send "&cСейчас нельзя использовать способность." to player
+                stop
+            if {max.locked.%player%} is true:
+                stop
+            if {max.abilityLockUntil.%player%} is set:
+                if {max.abilityLockUntil.%player%} > now:
+                    send "&cСпособности пока недоступны." to player
+                    stop
+            if tryCooldown(player, "max_flame", 90) is false:
+                stop
+            set {_count} to 0
+            loop all players:
+                set {_s} to loop-player
+                if maxValidTarget(player, {_s}) is true:
+                    if {_s} has a potion effect of glowing:
+                        remove glowing from {_s}
+                        set fire ticks of {_s} to 60
+                        set {max.flameUntil.%{_s}%} to now + 3 seconds
+                        add 1 to {_count}
+                        awardXP(player, "max", 30)
+            awardXP(player, "max", 10)
+            send "&c&lПЛАМЯ! &7Поражено целей: %{_count}%." to player
+
+every 2 ticks:
+    loop all players:
+        if {max.flameUntil.%loop-player%} is set:
+            if {max.flameUntil.%loop-player%} <= now:
+                delete {max.flameUntil.%loop-player%}
