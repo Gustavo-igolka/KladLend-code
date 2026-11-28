@@ -48,6 +48,9 @@ function getStoryLmsSound(kc: text, sc: text) :: text:
     else if {_kc} is "samurai":
         if {_sc} is "detective":
             return "kladlend:fatal_ritual"
+    else if {_kc} is "max":
+        if {_sc} is "kirill":
+            return "kladlend:broken_bond"
     return ""
 
 # Название трека для объявления в чате. Известным трекам — красивое имя,
@@ -65,6 +68,8 @@ function lmsTrackTitle(sound: text) :: text:
         return "Divine Game"
     else if {_sound} is "kladlend:fatal_ritual":
         return "FATAL RITUAL"
+    else if {_sound} is "kladlend:broken_bond":
+        return "Broken Bond"
     else if {_sound} is "kladlend:big_game":
         return "BIG GAME"
     else if {_sound} is "kladlend:holiday_now_run":
