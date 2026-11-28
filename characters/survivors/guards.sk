@@ -54,6 +54,9 @@ on damage:
                             awardXP(attacker, "mihuilong", 30)
 
 on left click:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -109,6 +112,9 @@ on damage:
                             sporeInfect(victim)
 
 on left click:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -172,6 +178,9 @@ on damage:
                             cancel event
 
 on left click:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -627,6 +636,9 @@ on damage:
                             cancel event
 
 on left click:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
@@ -674,6 +686,9 @@ on damage:
                             cancel event
 
 on left click:
+    if {max.captured.%player%} is true:
+        cancel event
+        stop
     if {round.active} is true:
         if {round.live} is not true:
             cancel event
