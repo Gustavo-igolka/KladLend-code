@@ -1,0 +1,70 @@
+# =========================================================
+# parkour/commands.sk — команды САП
+# Площадка: вертикальные этажи 31×31, шаг между этажами 25 блоков.
+# Максимальная высота 319 соответствует стандартному миру 1.19.4+.
+# =========================================================
+
+command /parkoursetbase:
+    permission: op
+    trigger:
+        if size of {parkour.sessions::*} > 0:
+            send "&cНельзя менять основание, пока активен хотя бы один паркур." to player
+            stop
+
+        set {parkour.base.x} to floor(x-coordinate of player)
+        set {parkour.base.y} to floor(y-coordinate of player) - 1
+        set {parkour.base.z} to floor(z-coordinate of player)
+        set {parkour.base.world} to world of player
+
+        set {_capacity} to floor((319 - {parkour.base.y} - 23) / 25) + 1
+        if {_capacity} < 1:
+            delete {parkour.base.world}
+            send "&cСлишком высокая точка основания. Нужен запас минимум 24 блока до Y=319." to player
+            stop
+
+        send "&aОснование САП установлено."
+        send "&7Центр: X=%{parkour.base.x}%, Y=%{parkour.base.y}%, Z=%{parkour.base.z}%"
+        send "&7Мир: %{parkour.base.world}%"
+        send "&7Максимум этажей: %{_capacity}%"
+        send "&eВажно: выдели свободную область 31×31 до максимальной высоты мира."
+
+command /parkour <text>:
+    trigger:
+        if {round.active} is true:
+            send "&cПаркур доступен только между раундами." to player
+            stop
+
+        set {_id} to "%uuid of player%"
+        if {parkour.active::%{_id}%} is true:
+            send "&cТы уже проходишь паркур. Используй /parkourstop." to player
+            stop
+
+        if {parkour.base.world} is not set:
+            send "&cПлощадка САП ещё не настроена администрацией." to player
+            stop
+
+        if arg-1 does not match regex "^[0-9]{3}$":
+            send "&cID должен состоять ровно из трёх цифр: например, 007 или 042." to player
+            stop
+
+        set {_capacity} to floor((319 - {parkour.base.y} - 23) / 25) + 1
+        delete {_slot}
+        loop integers from 1 to {_capacity}:
+            if {parkour.slotOwner.%loop-number%} is not set:
+                set {_slot} to loop-number
+                stop loop
+
+        if {_slot} is not set:
+            send "&cВсе этажи паркурного столба заняты. Попробуй позже." to player
+            stop
+
+        set {parkour.slotOwner.%{_slot}%} to {_id}
+        parkourGenerate(player, arg-1, {_slot})
+
+command /parkourstop:
+    trigger:
+        set {_id} to "%uuid of player%"
+        if {parkour.active::%{_id}%} is not true:
+            send "&7У тебя нет активной паркур-сессии." to player
+            stop
+        parkourStop(player, true, true)

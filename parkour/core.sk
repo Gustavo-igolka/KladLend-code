@@ -1,0 +1,85 @@
+# =========================================================
+# parkour/core.sk — изоляция сессий и жизненный цикл САП
+# Только базовый Skript. Никаких зависимостей от WorldEdit/SkBee.
+# =========================================================
+
+function parkourClearSession(id: text):
+    loop {parkour.blocks.%{_id}%::*}:
+        set block at loop-value to air
+    delete {parkour.blocks.%{_id}%::*}
+
+function parkourStop(p: player, returnPlayer: boolean, notify: boolean):
+    set {_id} to "%uuid of {_p}%"
+    if {parkour.active::%{_id}%} is not true:
+        stop
+
+    set {_slot} to {parkour.slot::%{_id}%}
+    parkourClearSession({_id})
+
+    if {_slot} is set:
+        delete {parkour.slotOwner.%{_slot}%}
+
+    if {_returnPlayer} is true:
+        if {parkour.return::%{_id}%} is set:
+            teleport {_p} to {parkour.return::%{_id}%}
+        if {parkour.gamemode::%{_id}%} is set:
+            set gamemode of {_p} to {parkour.gamemode::%{_id}%}
+
+    if {_notify} is true:
+        send "&aПаркур завершён. Ты возвращён на исходное место." to {_p}
+
+    remove {_id} from {parkour.sessions::*}
+    delete {parkour.active::%{_id}%}
+    delete {parkour.id::%{_id}%}
+    delete {parkour.slot::%{_id}%}
+    delete {parkour.floorY::%{_id}%}
+    delete {parkour.start::%{_id}%}
+    delete {parkour.finish::%{_id}%}
+    delete {parkour.return::%{_id}%}
+    delete {parkour.gamemode::%{_id}%}
+
+function parkourStopAll():
+    # Сначала корректно возвращаем всех онлайн-игроков.
+    loop all players:
+        set {_p} to loop-player
+        set {_id} to "%uuid of {_p}%"
+        if {parkour.active::%{_id}%} is true:
+            parkourStop({_p}, true, false)
+
+    # Затем очищаем оставшиеся сессии вышедших игроков.
+    loop {parkour.sessions::*}:
+        set {_id} to loop-value
+        parkourClearSession({_id})
+        if {parkour.slot::%{_id}%} is set:
+            delete {parkour.slotOwner.%{parkour.slot::%{_id}%}%}
+        delete {parkour.active::%{_id}%}
+        delete {parkour.id::%{_id}%}
+        delete {parkour.slot::%{_id}%}
+        delete {parkour.floorY::%{_id}%}
+        delete {parkour.start::%{_id}%}
+        delete {parkour.finish::%{_id}%}
+        delete {parkour.return::%{_id}%}
+        delete {parkour.gamemode::%{_id}%}
+    delete {parkour.sessions::*}
+    delete {parkour.slotOwner::*}
+
+on move:
+    set {_id} to "%uuid of player%"
+    if {parkour.active::%{_id}%} is true:
+        # Падение ниже собственного этажа возвращает игрока на старт.
+        if y-coordinate of player < {parkour.floorY::%{_id}%} + 1:
+            teleport player to {parkour.start::%{_id}%}
+            send action bar "&eПадение! Возвращение на начало трассы." to player
+            stop
+
+        # Финиш автоматически завершает сессию.
+        if distance between player and {parkour.finish::%{_id}%} <= 1.5:
+            parkourStop(player, true, true)
+
+on quit:
+    parkourStop(player, false, false)
+
+on load:
+    # Страховка после /sk reload или перезапуска: освобождаем этажи,
+    # а онлайн-игроков возвращаем на сохранённые места.
+    parkourStopAll()
